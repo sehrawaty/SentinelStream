@@ -1,0 +1,76 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: sentinelstream-api
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/sentinel?replicaSet=rs0&directConnection=true&w=majority}
+    redis:
+      url: ${REDIS_URL:redis://localhost:6379}
+  neo4j:
+    uri: ${NEO4J_URI:bolt://localhost:7687}
+    authentication:
+      username: ${NEO4J_USER:neo4j}
+      password: ${NEO4J_PASSWORD:sentinel-dev}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# CLAUDE.md §5 — rules engine constants. Change here, not in code; the report
+# quotes these values, so a change here should also update CLAUDE.md §5/§8.
+sentinel:
+  rules:
+    velocity:
+      count: 5
+      windowSeconds: 60
+      weight: 40
+    amount:
+      sigma: 3
+      sampleSize: 20
+      minSamples: 5
+      weight: 25
+    travel:
+      thresholdKmh: 900
+      minKm: 200
+      weight: 70
+    fanout:
+      minCards: 3
+      windowSeconds: 600
+      weight: 55
+    severityBands:
+      low: 1
+      medium: 40
+      high: 70
+
+  # CLAUDE.md §4.1 — Redis key registry TTLs (seconds)
+  redis:
+    idempotencyTtl: 900
+    cardWindowTtl: 3600
+    entityWindowTtl: 1800
+    ringCooldownTtl: 300
+
+  stream:
+    key: txn:stream
+    maxlen: 100000
+    consumerGroup: fraud-detectors
+
+  generator:
+    ratePerSecond: 150
+    cardCount: 500
+    merchantCount: 80
+    deviceCount: 300
+    ipCount: 400
+    maxCardsPerDevice: 2   # CLAUDE.md §8 D-04 — caps benign fan-out below threshold
+
+  bulkWriter:
+    queueCapacity: 5000
+    flushDocs: 200
+    flushIntervalMs: 500

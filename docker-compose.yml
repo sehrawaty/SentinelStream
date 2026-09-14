@@ -1,0 +1,117 @@
+# SentinelStream — local stack. Versions/ports/limits per CLAUDE.md §2.
+# Run: docker compose up -d --build
+# Health: curl http://localhost:8080/api/health
+
+services:
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: sentinel-redis
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --save ""
+      --maxmemory 512mb
+      --maxmemory-policy noeviction
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    mem_limit: 768m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7.0
+    container_name: sentinel-mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.5"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+    restart: unless-stopped
+
+  # One-shot: initiates rs0 once mongod is reachable. Idempotent — safe to
+  # restart the stack without re-initiating an already-initiated replica set.
+  mongo-init:
+    image: mongo:7.0
+    container_name: sentinel-mongo-init
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint: ["mongosh", "--host", "mongo:27017", "--quiet", "--eval"]
+    command: >
+      "try {
+         rs.status();
+         print('rs0 already initiated');
+       } catch (e) {
+         rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] });
+         print('rs0 initiated');
+       }"
+    restart: "no"
+
+  neo4j:
+    image: neo4j:5.20-community
+    container_name: sentinel-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/sentinel-dev
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_PLUGINS: "[]"
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 15s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+    container_name: sentinel-api
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      REDIS_URL: redis://redis:6379
+      MONGO_URI: mongodb://mongo:27017/sentinel?replicaSet=rs0&directConnection=true&w=majority
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: sentinel-dev
+      JAVA_OPTS: -XX:MaxRAMPercentage=75
+    mem_limit: 1g
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+  mongo-data:
+  neo4j-data:
+  neo4j-logs:
