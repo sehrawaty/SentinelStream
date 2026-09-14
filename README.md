@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 10**.
+> follows is current through **Slice 11**.
 
 ## Prerequisites
 
@@ -66,7 +66,8 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 8 — `explain()` evidence capture (`docs/evidence/`)
 - [x] Slice 9 — minimal UI for the graded path ⛳ **grading gate**
 - [x] Slice 10 — seed script, deterministic demo state
-- [ ] Slice 11+ — Neo4j projector, ring queries, graph panel, live tape, polish
+- [x] Slice 11 — Neo4j constraints + batched graph projector
+- [ ] Slice 12+ — ring queries, graph panel, live tape, polish
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
 demonstrable live from the dashboard at http://localhost:3000 — no curl
@@ -132,5 +133,20 @@ blocked. `C-9001` sits at `NEW`/HIGH — the row to click first.
 Re-running without `--wipe` is idempotent: the PRNG is seeded, so a second
 run regenerates identical ids and the writes are treated as no-ops rather
 than erroring or duplicating.
+
+### Graph projector
+
+`GraphProjector` (batched, non-blocking, mirroring `MongoBulkWriter`'s
+shape) turns every processed transaction into `MERGE`d `Card`/`Device`/`Ip`
+nodes and `USED_DEVICE`/`FROM_IP` relationships in Neo4j — a bounded queue,
+flushed on 100 edges or 500ms, `UNWIND`+`MERGE` in one round trip, never a
+synchronous Bolt call on the consumer's hot path. `Neo4jConstraintsConfig`
+ensures the four uniqueness constraints (CLAUDE.md §4.4) at boot, the same
+`IF NOT EXISTS` idempotency pattern as `MongoIndexConfig`. Live-verified: the
+graph grows continuously from organic traffic (confirmed via `cypher-shell`
+node/relationship counts climbing over a few seconds), queue depth stays
+flat (not backlogging), and the seeded ring from Slice 10 survives untouched
+alongside it. `GET /api/admin/mongo-stats` also reports the projector's
+queue depth / flush count / dropped count, next to the Mongo bulk writer's.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.

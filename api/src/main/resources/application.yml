@@ -80,6 +80,12 @@ sentinel:
     flushDocs: 200
     flushIntervalMs: 500
 
+  # spec §5 -- "Bounded queue, flushed every 500ms or 100 edges."
+  graphProjector:
+    queueCapacity: 5000
+    flushEdges: 100
+    flushIntervalMs: 500
+
   # CLAUDE.md §5 — injectable fraud patterns (spec §5, corrected per §8 D-02/D-03)
   injectors:
     velocity:

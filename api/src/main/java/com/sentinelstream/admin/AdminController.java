@@ -1,5 +1,6 @@
 package com.sentinelstream.admin;
 
+import com.sentinelstream.graph.GraphProjector;
 import com.sentinelstream.persist.MongoBulkWriter;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.index.IndexInfo;
@@ -26,10 +27,12 @@ public class AdminController {
 
     private final MongoTemplate mongoTemplate;
     private final MongoBulkWriter bulkWriter;
+    private final GraphProjector graphProjector;
 
-    public AdminController(MongoTemplate mongoTemplate, MongoBulkWriter bulkWriter) {
+    public AdminController(MongoTemplate mongoTemplate, MongoBulkWriter bulkWriter, GraphProjector graphProjector) {
         this.mongoTemplate = mongoTemplate;
         this.bulkWriter = bulkWriter;
+        this.graphProjector = graphProjector;
     }
 
     @GetMapping("/api/admin/indexes")
@@ -58,6 +61,10 @@ public class AdminController {
         body.put("bulkWriterFlushedDocs", bulkWriter.flushedDocs());
         body.put("bulkWriterDropped", bulkWriter.dropped());
         body.put("bulkWriterLastFlushMs", bulkWriter.lastFlushMs());
+        body.put("graphProjectorQueueDepth", graphProjector.queueDepth());
+        body.put("graphProjectorFlushCount", graphProjector.flushCount());
+        body.put("graphProjectorFlushedEdges", graphProjector.flushedEdges());
+        body.put("graphProjectorDropped", graphProjector.dropped());
         for (String coll : COLLECTIONS) {
             body.put(coll + "Count", mongoTemplate.getCollection(coll).estimatedDocumentCount());
         }
