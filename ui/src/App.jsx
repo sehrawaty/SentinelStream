@@ -11,6 +11,8 @@ import CreateAlertModal from './components/CreateAlertModal.jsx';
 import InjectorControls from './components/InjectorControls.jsx';
 import RingPanel from './components/RingPanel.jsx';
 import SettlementTape from './components/SettlementTape.jsx';
+import RuleActivityChart from './components/RuleActivityChart.jsx';
+import AllRingsPanel from './components/AllRingsPanel.jsx';
 import { useStompTopic, useStompConnected } from './ws.js';
 
 export default function App() {
@@ -47,11 +49,13 @@ export default function App() {
             onRaiseCase={() => setShowCreate(true)}
           />
           <SeverityTimelineChart />
+          <RuleActivityChart />
         </div>
         <div className="col">
           <SettlementTape />
           <CategoryRiskChart />
           <TopCardsPanel onSelectCard={setRingCardId} />
+          <AllRingsPanel onSelectCard={setRingCardId} />
         </div>
       </div>
 

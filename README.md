@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 15**.
+> follows is current through **Slice 16**.
 
 ## Prerequisites
 
@@ -72,7 +72,8 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 13 — Cytoscape ring panel, `fcose` layout
 - [x] Slice 14 — STOMP `/ws`, three live channels, settlement tape
 - [x] Slice 15 — edge-trace animation, tape print-in, fullscreen graph
-- [ ] Slice 16+ — secondary panels, responsive/a11y pass, README/report/deck
+- [x] Slice 16 — rule-activity chart, all-rings panel
+- [ ] Slice 17+ — responsive/a11y pass, README/report/deck
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
 demonstrable live from the dashboard at http://localhost:3000 — no curl
@@ -264,5 +265,26 @@ media query, and the fullscreen toggle logic actually shipped. **Not
 verified in an actual browser** — same caveat as Slices 13/14: no
 headless-browser tool was available this session, so the print-in timing,
 edge-trace pacing, and fullscreen resize behavior are unconfirmed on screen.
+
+### Secondary panels (Slice 16)
+
+Two panels the plan marks cuttable, built because both reuse data/endpoints
+that already existed:
+
+- **Rule Activity** (`RuleActivityChart.jsx`) — a horizontal bar chart of
+  detector fire counts over the last 60 minutes, colour-coded per rule. Reads
+  the KPI `$facet` pipeline's `byRule` sub-pipeline (already computed for the
+  KPI strip) under the *same* `['kpi']` query key as `KpiStrip`, so React
+  Query dedupes the two into one poll rather than doubling the facet query.
+- **All Rings** (`AllRingsPanel.jsx`) — the `ALL_RINGS` global sweep
+  (CLAUDE.md §4.4, distinct from the seed-card-specific `RING_FOR_CARD`
+  every other ring entry point uses): every device/IP currently shared by
+  3+ cards, ranked by fan-out size. Clicking a row opens the same
+  `RingPanel` used everywhere else, seeded from that entity's first card.
+
+Verified: production build clean; grepped the served bundle for both
+panels' UI strings and confirmed `/api/rings` and the KPI facet's `byRule`
+field return the expected shapes through the nginx-proxied port. **Not
+verified in an actual browser** — same caveat as Slices 13-15.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.
