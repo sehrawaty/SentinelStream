@@ -104,8 +104,11 @@ public class TransactionConsumer {
 
             // 5. PERSIST TRANSACTION (buffer) — non-blocking enqueue, MongoBulkWriter
             //    flushes on 200 docs or 500ms (implementation plan Part 5). Upsert on
-            //    txnId makes this safe to repeat on redelivery.
-            Document txnDoc = mapper.toDocument(v, blocked);
+            //    txnId makes this safe to repeat on redelivery. flagged/score come
+            //    from step 4's evaluation, already computed above (D-11 denormalisation).
+            boolean flagged = eval != null && eval.score() > 0;
+            int score = eval != null ? eval.score() : 0;
+            Document txnDoc = mapper.toDocument(v, blocked, flagged, score);
             bulkWriter.enqueue(txnDoc);
 
             // 6. PERSIST ALERT (sync) — only when at least one rule fired.
