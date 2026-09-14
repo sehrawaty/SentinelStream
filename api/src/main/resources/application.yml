@@ -64,11 +64,16 @@ sentinel:
 
   generator:
     ratePerSecond: 150
-    cardCount: 500
+    cardCount: 4000          # CLAUDE.md §8 D-19 — sized so the cooldown below can sustain 150 txn/s
     merchantCount: 80
-    deviceCount: 300
-    ipCount: 400
-    maxCardsPerDevice: 2   # CLAUDE.md §8 D-04 — caps benign fan-out below threshold
+    deviceCount: 2200        # CLAUDE.md §8 D-19 — >=2000 required to hold maxCardsPerDevice at 4000 cards
+    ipCount: 3200            # CLAUDE.md §8 D-19 — >=2600 required to hold maxCardsPerIp
+    maxCardsPerDevice: 2     # CLAUDE.md §8 D-04 — caps benign fan-out below threshold
+    maxCardsPerIp: 2         # CLAUDE.md §8 D-19 — D-04 covered devices only; IPs feed the same detector
+    minHomeIpsPerCard: 1
+    maxHomeIpsPerCard: 2
+    minTxnGapMs: 20000       # CLAUDE.md §8 D-19 — hard per-card cooldown, caps velocity at 4/60s structurally
+    seed: 1590810094         # 0x5ENT1NEL — deterministic PRNG seed, matches seed.mjs (PLAN.md Part 7)
 
   bulkWriter:
     queueCapacity: 5000

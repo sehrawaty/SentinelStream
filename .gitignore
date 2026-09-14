@@ -7,3 +7,4 @@ target/
 .env
 docker-compose.override.yml
 .claude/
+api/bin/

@@ -128,7 +128,7 @@ All times are epoch milliseconds. All TTLs are refreshed on write.
 
 | Key | Type | TTL | Members / value | Written by | Read by |
 |---|---|---|---|---|---|
-| `txn:stream` | Stream | — | `XADD MAXLEN ~ 100000` (≈11 min @150/s) | generator | consumer group `fraud-detectors` |
+| `txn:stream` | Stream | — | capped at **100000** (≈11 min @150/s), trimmed via periodic `XTRIM` every 500 writes¹ | generator | consumer group `fraud-detectors` |
 | `idem:txn:{t}` | String | **900 s** | `"1"`, set `SET NX EX 900` | consumer step 2 | consumer step 2 |
 | `card:{c}:txns` | ZSet | **3600 s** | score `ts`, member `{t}` | step 3 | VELOCITY |
 | `card:{c}:amts` | ZSet | **3600 s** | score `ts`, member `"{t}|{amount}"` | step 3 | AMOUNT_ANOMALY |
@@ -148,6 +148,31 @@ policy is `noeviction`.
 **Window trimming.** Every window read is preceded by
 `ZREMRANGEBYSCORE <key> -inf <now - windowMs>`. Windows: velocity 60 s, amount
 3600 s (last 20 samples via `ZREVRANGE ... 0 19`), fan-out **600 s** (see §8 D-04).
+
+**`txn:stream` entry fields** (flat, since `XADD` takes field-value pairs, not
+nested JSON) — every producer (benign generator, and later the fraud injectors)
+writes exactly this field set:
+
+| Field | Example | Note |
+|---|---|---|
+| `txnId` | `T-M5F2K1-00001234` | boot-scoped run id + sequence, globally unique |
+| `cardId` | `C-0417` | |
+| `amount` | `4821.50` | string, 2dp |
+| `currency` | `INR` | |
+| `ts` | `1757858400000` | epoch millis, string |
+| `merchantId` / `merchantName` / `merchantCategory` / `mcc` | | mirrors `transactions.merchant` (§4.2) |
+| `city` / `lat` / `lon` | | one of the 12 cities, §4.6 |
+| `deviceId` | `D-1042` | |
+| `ip` | `49.207.14.88` | |
+| `injected` | `false` | `true` for fraud-injector traffic; not persisted downstream, debugging aid only |
+
+The consumer (§7) maps this directly onto the `transactions` document shape.
+
+¹ Exact `XTRIM MAXLEN`, not the approximate `~` form — Spring Data Redis 3.3's
+`StreamOperations` doesn't expose the `MapRecord` + `XAddOptions` overload cleanly
+enough to trim inline on every `XADD`, so trimming runs as a separate periodic
+call instead. At this scale (100k cap) the O(log N) cost difference between exact
+and approximate trimming is immaterial.
 
 ### §4.2 MongoDB collections
 
@@ -444,6 +469,53 @@ Fan-out fires at the **3rd** card, ~6 s in — before all six have transacted. T
 ring query then returns all six as they arrive. Narrate it that way: Redis notices
 early and partially; Neo4j resolves the whole group.
 
+### Baseline traffic — population and pacing (§8 D-19)
+
+Same failure class as the fan-out bug (D-04), on the *other* detector: at the
+spec's **500 cards** and **150 txn/s**, a generator picking cards uniformly at
+random gives a mean of **18 transactions per card per 60 s window** — 3.6× the
+VELOCITY threshold of 5/60s. Baseline traffic would trip VELOCITY constantly,
+which is worse than the fan-out bug because VELOCITY is the *first* pattern
+demoed (spec §9 step 2). Fixed the same way D-04 fixed fan-out: a **structural**
+guarantee, not a probabilistic one.
+
+**The fix has two parts, both required together:**
+
+1. **Hard per-card cooldown.** The benign generator enforces a minimum **20 s**
+   gap between any two transactions on the same card (injected fraud patterns
+   deliberately bypass this — that is what makes them fraud). A hard 20 s floor
+   makes the maximum possible count in *any* 60 s window exactly **4**
+   (transactions at t, t+20, t+40, t+60 span 60 s; a 5th needs t+80) —
+   structurally below the threshold of 5, not just unlikely to reach it.
+2. **Card pool sized to sustain throughput under that cooldown.** A 20 s
+   per-card floor caps single-card throughput at 0.05 txn/s, so sustaining
+   150 txn/s in aggregate needs at minimum `150 × 20 = 3,000` cards with an
+   eligible (off-cooldown) card available at every tick. Below that minimum the
+   generator stalls waiting for a free card and true throughput sags below 150.
+
+**Population, corrected:**
+
+| Entity | Spec figure | Corrected | Why |
+|---|---|---|---|
+| Cards | ~500 | **4,000** | ≥3,000 required by the cooldown; slack avoids generator stalls finding an eligible card |
+| Devices | ~200 → 300 (D-04) | **2,200** | ≥2,000 required to hold the D-04 cap of ≤2 cards/device at 4,000 cards |
+| IPs | ~300 → 400 (D-04) | **3,200** | ≥2,600 required to hold ≤2 cards/IP at ~1.3 home IPs/card average |
+| Merchants | ~80 | **80**, unchanged | Not in the `ENTITY_FANOUT` scope (§4.1 tracks `device:{d}:cards` / `ip:{i}:cards` only, no merchant key) — no threshold interaction exists |
+
+**IP fan-out was also unaddressed by D-04.** D-04's prose capped devices at ≤2
+cards but did not say the same for IPs, even though `ip:{i}:cards` feeds the same
+`ENTITY_FANOUT` detector as `device:{d}:cards` (§4.1). Corrected here: IPs get
+the identical ≤2-cards-per-IP structural cap at assignment time.
+
+**Travel safety, for completeness:** each card is assigned one fixed home city;
+baseline transactions never leave it. `IMPOSSIBLE_TRAVEL` has zero baseline
+exposure by construction — no probabilistic argument needed, since there is
+nothing to compute a cross-city speed from. Only the travel injector (§5, which
+targets one card deliberately) produces a city change.
+
+`sentinel.generator.*` in `application.yml` is the authoritative source for
+these counts; this table exists so the reasoning survives a config-file skim.
+
 ---
 
 ## §6 API surface
@@ -552,6 +624,7 @@ is the only step that can take tens of milliseconds.
 | D-16 | 2026-09-14 | Triage queue is a **tab** in the alert-feed region, not a separate route | Keeps the graded CRUD path inside the live dashboard the examiner is already looking at, rather than requiring navigation away from it. Recommendation accepted by default; revisit if it crowds the layout. |
 | D-17 | 2026-09-14 | Seed volume **50,000 transactions / 2,000 alerts** | Needed so the `explain()` before/after gap (COLLSCAN → IXSCAN) is visually obvious on a projector; at a few hundred docs the timing difference is noise. |
 | D-18 | 2026-09-14 | Gradle (not Maven) for the API build | Default choice; mechanical to swap later if needed. |
+| D-19 | 2026-09-14 | Card pool **500 → 4,000**; devices **→ 2,200**; IPs **→ 3,200**; hard **20 s per-card cooldown** in the benign generator | Same bug class as D-04, on VELOCITY instead of fan-out: 500 cards at 150 txn/s gives a mean of 18 txns/card/60s against a threshold of 5. A structural cooldown plus a pool sized to sustain throughput under it removes the failure mode entirely rather than reducing its odds. Also closes a gap D-04 left open: IPs get the same ≤2-cards cap as devices. See §5 "Baseline traffic — population and pacing". |
 
 ---
 
