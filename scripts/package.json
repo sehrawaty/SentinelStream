@@ -1,0 +1,8 @@
+{
+  "name": "sentinelstream-scripts",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "mongodb": "^6.10.0"
+  }
+}

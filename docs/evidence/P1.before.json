@@ -1,0 +1,168 @@
+{
+  "explainVersion": "1",
+  "queryPlanner": {
+    "namespace": "sentinel.alerts",
+    "indexFilterSet": false,
+    "parsedQuery": {
+      "$and": [
+        {
+          "severity": {
+            "$eq": "HIGH"
+          }
+        },
+        {
+          "status": {
+            "$eq": "NEW"
+          }
+        }
+      ]
+    },
+    "queryHash": "B7C555F4",
+    "planCacheKey": "6ABE1FC8",
+    "optimizationTimeMillis": 0,
+    "maxIndexedOrSolutionsReached": false,
+    "maxIndexedAndSolutionsReached": false,
+    "maxScansToExplodeReached": false,
+    "winningPlan": {
+      "stage": "FETCH",
+      "filter": {
+        "status": {
+          "$eq": "NEW"
+        }
+      },
+      "inputStage": {
+        "stage": "IXSCAN",
+        "keyPattern": {
+          "severity": 1,
+          "ts": -1
+        },
+        "indexName": "severity_1_ts_-1",
+        "isMultiKey": false,
+        "multiKeyPaths": {
+          "severity": [],
+          "ts": []
+        },
+        "isUnique": false,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": 2,
+        "direction": "forward",
+        "indexBounds": {
+          "severity": [
+            "[\"HIGH\", \"HIGH\"]"
+          ],
+          "ts": [
+            "[MaxKey, MinKey]"
+          ]
+        }
+      }
+    },
+    "rejectedPlans": []
+  },
+  "executionStats": {
+    "executionSuccess": true,
+    "nReturned": 10,
+    "executionTimeMillis": 0,
+    "totalKeysExamined": 10,
+    "totalDocsExamined": 10,
+    "executionStages": {
+      "stage": "FETCH",
+      "filter": {
+        "status": {
+          "$eq": "NEW"
+        }
+      },
+      "nReturned": 10,
+      "executionTimeMillisEstimate": 0,
+      "works": 11,
+      "advanced": 10,
+      "needTime": 0,
+      "needYield": 0,
+      "saveState": 0,
+      "restoreState": 0,
+      "isEOF": 1,
+      "docsExamined": 10,
+      "alreadyHasObj": 0,
+      "inputStage": {
+        "stage": "IXSCAN",
+        "nReturned": 10,
+        "executionTimeMillisEstimate": 0,
+        "works": 11,
+        "advanced": 10,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 0,
+        "restoreState": 0,
+        "isEOF": 1,
+        "keyPattern": {
+          "severity": 1,
+          "ts": -1
+        },
+        "indexName": "severity_1_ts_-1",
+        "isMultiKey": false,
+        "multiKeyPaths": {
+          "severity": [],
+          "ts": []
+        },
+        "isUnique": false,
+        "isSparse": false,
+        "isPartial": false,
+        "indexVersion": 2,
+        "direction": "forward",
+        "indexBounds": {
+          "severity": [
+            "[\"HIGH\", \"HIGH\"]"
+          ],
+          "ts": [
+            "[MaxKey, MinKey]"
+          ]
+        },
+        "keysExamined": 10,
+        "seeks": 1,
+        "dupsTested": 0,
+        "dupsDropped": 0
+      }
+    }
+  },
+  "command": {
+    "find": "alerts",
+    "filter": {
+      "status": "NEW",
+      "severity": "HIGH"
+    },
+    "sort": {
+      "ts": -1
+    },
+    "$db": "sentinel"
+  },
+  "serverInfo": {
+    "host": "0f77bcd46056",
+    "port": 27017,
+    "version": "7.0.41",
+    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+  },
+  "serverParameters": {
+    "internalQueryFacetBufferSizeBytes": 104857600,
+    "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+    "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+    "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+    "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+    "internalQueryProhibitBlockingMergeOnMongoS": 0,
+    "internalQueryMaxAddToSetBytes": 104857600,
+    "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+    "internalQueryFrameworkControl": "forceClassicEngine"
+  },
+  "ok": 1,
+  "$clusterTime": {
+    "clusterTime": {
+      "$timestamp": "7685336873698328747"
+    },
+    "signature": {
+      "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "keyId": 0
+    }
+  },
+  "operationTime": {
+    "$timestamp": "7685336873698328747"
+  }
+}

@@ -1,0 +1,326 @@
+{
+  "explainVersion": "1",
+  "queryPlanner": {
+    "namespace": "sentinel.transactions",
+    "indexFilterSet": false,
+    "parsedQuery": {
+      "$and": [
+        {
+          "$expr": {
+            "$and": [
+              {
+                "$eq": [
+                  "$cardId",
+                  {
+                    "$const": "C-0417"
+                  }
+                ]
+              },
+              {
+                "$lt": [
+                  "$ts",
+                  {
+                    "$const": "2026-09-14T10:32:12.706Z"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "cardId": {
+            "$_internalExprEq": "C-0417"
+          }
+        },
+        {
+          "ts": {
+            "$_internalExprLt": "2026-09-14T10:32:12.706Z"
+          }
+        }
+      ]
+    },
+    "queryHash": "DD49D336",
+    "planCacheKey": "AB123801",
+    "optimizationTimeMillis": 0,
+    "optimizedPipeline": true,
+    "maxIndexedOrSolutionsReached": false,
+    "maxIndexedAndSolutionsReached": false,
+    "maxScansToExplodeReached": false,
+    "winningPlan": {
+      "stage": "LIMIT",
+      "limitAmount": 10,
+      "inputStage": {
+        "stage": "FETCH",
+        "filter": {
+          "$expr": {
+            "$and": [
+              {
+                "$eq": [
+                  "$cardId",
+                  {
+                    "$const": "C-0417"
+                  }
+                ]
+              },
+              {
+                "$lt": [
+                  "$ts",
+                  {
+                    "$const": "2026-09-14T10:32:12.706Z"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "inputStage": {
+          "stage": "IXSCAN",
+          "keyPattern": {
+            "cardId": 1,
+            "ts": -1
+          },
+          "indexName": "cardId_1_ts_-1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+            "cardId": [],
+            "ts": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+            "cardId": [
+              "[\"C-0417\", \"C-0417\"]"
+            ],
+            "ts": [
+              "(new Date(1789381932706), MinKey]"
+            ]
+          }
+        }
+      }
+    },
+    "rejectedPlans": [
+      {
+        "stage": "LIMIT",
+        "limitAmount": 10,
+        "inputStage": {
+          "stage": "FETCH",
+          "filter": {
+            "$and": [
+              {
+                "$expr": {
+                  "$and": [
+                    {
+                      "$eq": [
+                        "$cardId",
+                        {
+                          "$const": "C-0417"
+                        }
+                      ]
+                    },
+                    {
+                      "$lt": [
+                        "$ts",
+                        {
+                          "$const": "2026-09-14T10:32:12.706Z"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "cardId": {
+                  "$_internalExprEq": "C-0417"
+                }
+              }
+            ]
+          },
+          "inputStage": {
+            "stage": "IXSCAN",
+            "keyPattern": {
+              "ts": -1
+            },
+            "indexName": "ts_-1",
+            "isMultiKey": false,
+            "multiKeyPaths": {
+              "ts": []
+            },
+            "isUnique": false,
+            "isSparse": false,
+            "isPartial": false,
+            "indexVersion": 2,
+            "direction": "forward",
+            "indexBounds": {
+              "ts": [
+                "(new Date(1789381932706), MinKey]"
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "executionStats": {
+    "executionSuccess": true,
+    "nReturned": 10,
+    "executionTimeMillis": 0,
+    "totalKeysExamined": 10,
+    "totalDocsExamined": 10,
+    "executionStages": {
+      "stage": "LIMIT",
+      "nReturned": 10,
+      "executionTimeMillisEstimate": 0,
+      "works": 11,
+      "advanced": 10,
+      "needTime": 0,
+      "needYield": 0,
+      "saveState": 0,
+      "restoreState": 0,
+      "isEOF": 1,
+      "limitAmount": 10,
+      "inputStage": {
+        "stage": "FETCH",
+        "filter": {
+          "$expr": {
+            "$and": [
+              {
+                "$eq": [
+                  "$cardId",
+                  {
+                    "$const": "C-0417"
+                  }
+                ]
+              },
+              {
+                "$lt": [
+                  "$ts",
+                  {
+                    "$const": "2026-09-14T10:32:12.706Z"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "nReturned": 10,
+        "executionTimeMillisEstimate": 0,
+        "works": 10,
+        "advanced": 10,
+        "needTime": 0,
+        "needYield": 0,
+        "saveState": 0,
+        "restoreState": 0,
+        "isEOF": 0,
+        "docsExamined": 10,
+        "alreadyHasObj": 0,
+        "inputStage": {
+          "stage": "IXSCAN",
+          "nReturned": 10,
+          "executionTimeMillisEstimate": 0,
+          "works": 10,
+          "advanced": 10,
+          "needTime": 0,
+          "needYield": 0,
+          "saveState": 0,
+          "restoreState": 0,
+          "isEOF": 0,
+          "keyPattern": {
+            "cardId": 1,
+            "ts": -1
+          },
+          "indexName": "cardId_1_ts_-1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+            "cardId": [],
+            "ts": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+            "cardId": [
+              "[\"C-0417\", \"C-0417\"]"
+            ],
+            "ts": [
+              "(new Date(1789381932706), MinKey]"
+            ]
+          },
+          "keysExamined": 10,
+          "seeks": 1,
+          "dupsTested": 0,
+          "dupsDropped": 0
+        }
+      }
+    }
+  },
+  "command": {
+    "aggregate": "transactions",
+    "pipeline": [
+      {
+        "$match": {
+          "$expr": {
+            "$and": [
+              {
+                "$eq": [
+                  "$cardId",
+                  "C-0417"
+                ]
+              },
+              {
+                "$lt": [
+                  "$ts",
+                  "2026-09-14T10:32:12.706Z"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "$sort": {
+          "ts": -1
+        }
+      },
+      {
+        "$limit": 10
+      }
+    ],
+    "cursor": {},
+    "$db": "sentinel"
+  },
+  "serverInfo": {
+    "host": "0f77bcd46056",
+    "port": 27017,
+    "version": "7.0.41",
+    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+  },
+  "serverParameters": {
+    "internalQueryFacetBufferSizeBytes": 104857600,
+    "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+    "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+    "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+    "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+    "internalQueryProhibitBlockingMergeOnMongoS": 0,
+    "internalQueryMaxAddToSetBytes": 104857600,
+    "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+    "internalQueryFrameworkControl": "forceClassicEngine"
+  },
+  "ok": 1,
+  "$clusterTime": {
+    "clusterTime": {
+      "$timestamp": "7685336877993296042"
+    },
+    "signature": {
+      "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "keyId": 0
+    }
+  },
+  "operationTime": {
+    "$timestamp": "7685336877993296042"
+  }
+}

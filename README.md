@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 1**.
+> follows is current through **Slice 8**.
 
 ## Prerequisites
 
@@ -56,15 +56,30 @@ docker compose down -v       # wipe everything, including the replica set
 
 - [x] Slice 0 — `CLAUDE.md` frozen, repo skeleton
 - [x] Slice 1 — Compose stack (Redis / Mongo rs0 / Neo4j / API), `/api/health`
-- [ ] Slice 2 — generator → `txn:stream`
-- [ ] Slice 3 — consumer group, idempotency, blocklist check
-- [ ] Slice 4 — Mongo write path (validators, indexes, bulk writer)
-- [ ] Slice 5 — detectors, scoring
-- [ ] Slice 6 — triage API (full CRUD)
-- [ ] Slice 7 — aggregation pipelines
-- [ ] Slice 8 — explain() evidence capture
-- [ ] Slice 9 — minimal UI for the graded path
+- [x] Slice 2 — generator → `txn:stream` (~150 txn/s, D-19 velocity-safe)
+- [x] Slice 3 — consumer group, idempotency, blocklist check, PEL reclaim
+- [x] Slice 4 — Mongo write path (validators, 15-index registry, bulk writer)
+- [x] Slice 5 — four detectors, scoring, alert persistence, fraud injectors
+- [x] Slice 6 — triage API (full CRUD, block-card cross-store transaction)
+- [x] Slice 7 — aggregation pipelines A–E
+- [x] Slice 8 — `explain()` evidence capture (`docs/evidence/`)
+- [ ] Slice 9 — minimal UI for the graded path ⛳ **grading gate**
 - [ ] Slice 10 — seed script
 - [ ] Slice 11+ — Neo4j projector, ring queries, graph panel, live tape, polish
+
+**All four graded rubric elements (CRUD, indexing, aggregation) are
+backend-complete as of Slice 8** — reachable via REST/curl, proven live
+against the running stack. Slice 9 puts a UI in front of them.
+
+### Index evidence
+
+`node scripts/explain-evidence.mjs` (from `scripts/`, `npm install` once)
+captures live before/after `explain()` plans for six probe queries — see
+[`docs/evidence/explain-report.md`](docs/evidence/explain-report.md).
+Latest run: dropping the target index shifted every probe from a
+collection scan (or a less-specific fallback index) to the intended
+index seek, cutting documents examined by up to **~3,000×**. One negative
+control (a regex over note bodies) is included deliberately — no index
+helps it, and the report says so rather than only showing green rows.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.

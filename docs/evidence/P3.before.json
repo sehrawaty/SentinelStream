@@ -1,0 +1,119 @@
+{
+  "explainVersion": "1",
+  "queryPlanner": {
+    "namespace": "sentinel.transactions",
+    "indexFilterSet": false,
+    "parsedQuery": {
+      "$and": [
+        {
+          "flagged": {
+            "$eq": true
+          }
+        },
+        {
+          "merchant.category": {
+            "$eq": "JEWELRY"
+          }
+        }
+      ]
+    },
+    "queryHash": "7A3D735A",
+    "planCacheKey": "7A3D735A",
+    "optimizationTimeMillis": 0,
+    "maxIndexedOrSolutionsReached": false,
+    "maxIndexedAndSolutionsReached": false,
+    "maxScansToExplodeReached": false,
+    "winningPlan": {
+      "stage": "COLLSCAN",
+      "filter": {
+        "$and": [
+          {
+            "flagged": {
+              "$eq": true
+            }
+          },
+          {
+            "merchant.category": {
+              "$eq": "JEWELRY"
+            }
+          }
+        ]
+      },
+      "direction": "forward"
+    },
+    "rejectedPlans": []
+  },
+  "executionStats": {
+    "executionSuccess": true,
+    "nReturned": 3300,
+    "executionTimeMillis": 36,
+    "totalKeysExamined": 0,
+    "totalDocsExamined": 101935,
+    "executionStages": {
+      "stage": "COLLSCAN",
+      "filter": {
+        "$and": [
+          {
+            "flagged": {
+              "$eq": true
+            }
+          },
+          {
+            "merchant.category": {
+              "$eq": "JEWELRY"
+            }
+          }
+        ]
+      },
+      "nReturned": 3300,
+      "executionTimeMillisEstimate": 2,
+      "works": 101936,
+      "advanced": 3300,
+      "needTime": 98635,
+      "needYield": 0,
+      "saveState": 101,
+      "restoreState": 101,
+      "isEOF": 1,
+      "direction": "forward",
+      "docsExamined": 101935
+    }
+  },
+  "command": {
+    "find": "transactions",
+    "filter": {
+      "merchant.category": "JEWELRY",
+      "flagged": true
+    },
+    "$db": "sentinel"
+  },
+  "serverInfo": {
+    "host": "0f77bcd46056",
+    "port": 27017,
+    "version": "7.0.41",
+    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+  },
+  "serverParameters": {
+    "internalQueryFacetBufferSizeBytes": 104857600,
+    "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+    "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+    "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+    "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+    "internalQueryProhibitBlockingMergeOnMongoS": 0,
+    "internalQueryMaxAddToSetBytes": 104857600,
+    "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+    "internalQueryFrameworkControl": "forceClassicEngine"
+  },
+  "ok": 1,
+  "$clusterTime": {
+    "clusterTime": {
+      "$timestamp": "7685336877993295953"
+    },
+    "signature": {
+      "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "keyId": 0
+    }
+  },
+  "operationTime": {
+    "$timestamp": "7685336877993295953"
+  }
+}

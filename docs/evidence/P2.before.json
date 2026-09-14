@@ -1,0 +1,166 @@
+{
+  "explainVersion": "1",
+  "queryPlanner": {
+    "namespace": "sentinel.transactions",
+    "indexFilterSet": false,
+    "parsedQuery": {
+      "cardId": {
+        "$eq": "C-0417"
+      }
+    },
+    "queryHash": "BE5CD739",
+    "planCacheKey": "BE5CD739",
+    "optimizationTimeMillis": 0,
+    "maxIndexedOrSolutionsReached": false,
+    "maxIndexedAndSolutionsReached": false,
+    "maxScansToExplodeReached": false,
+    "winningPlan": {
+      "stage": "LIMIT",
+      "limitAmount": 10,
+      "inputStage": {
+        "stage": "FETCH",
+        "filter": {
+          "cardId": {
+            "$eq": "C-0417"
+          }
+        },
+        "inputStage": {
+          "stage": "IXSCAN",
+          "keyPattern": {
+            "ts": -1
+          },
+          "indexName": "ts_-1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+            "ts": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+            "ts": [
+              "[MaxKey, MinKey]"
+            ]
+          }
+        }
+      }
+    },
+    "rejectedPlans": []
+  },
+  "executionStats": {
+    "executionSuccess": true,
+    "nReturned": 10,
+    "executionTimeMillis": 24,
+    "totalKeysExamined": 30301,
+    "totalDocsExamined": 30301,
+    "executionStages": {
+      "stage": "LIMIT",
+      "nReturned": 10,
+      "executionTimeMillisEstimate": 5,
+      "works": 30302,
+      "advanced": 10,
+      "needTime": 30291,
+      "needYield": 0,
+      "saveState": 30,
+      "restoreState": 30,
+      "isEOF": 1,
+      "limitAmount": 10,
+      "inputStage": {
+        "stage": "FETCH",
+        "filter": {
+          "cardId": {
+            "$eq": "C-0417"
+          }
+        },
+        "nReturned": 10,
+        "executionTimeMillisEstimate": 5,
+        "works": 30301,
+        "advanced": 10,
+        "needTime": 30291,
+        "needYield": 0,
+        "saveState": 30,
+        "restoreState": 30,
+        "isEOF": 0,
+        "docsExamined": 30301,
+        "alreadyHasObj": 0,
+        "inputStage": {
+          "stage": "IXSCAN",
+          "nReturned": 30301,
+          "executionTimeMillisEstimate": 0,
+          "works": 30301,
+          "advanced": 30301,
+          "needTime": 0,
+          "needYield": 0,
+          "saveState": 30,
+          "restoreState": 30,
+          "isEOF": 0,
+          "keyPattern": {
+            "ts": -1
+          },
+          "indexName": "ts_-1",
+          "isMultiKey": false,
+          "multiKeyPaths": {
+            "ts": []
+          },
+          "isUnique": false,
+          "isSparse": false,
+          "isPartial": false,
+          "indexVersion": 2,
+          "direction": "forward",
+          "indexBounds": {
+            "ts": [
+              "[MaxKey, MinKey]"
+            ]
+          },
+          "keysExamined": 30301,
+          "seeks": 1,
+          "dupsTested": 0,
+          "dupsDropped": 0
+        }
+      }
+    }
+  },
+  "command": {
+    "find": "transactions",
+    "filter": {
+      "cardId": "C-0417"
+    },
+    "sort": {
+      "ts": -1
+    },
+    "limit": 10,
+    "$db": "sentinel"
+  },
+  "serverInfo": {
+    "host": "0f77bcd46056",
+    "port": 27017,
+    "version": "7.0.41",
+    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+  },
+  "serverParameters": {
+    "internalQueryFacetBufferSizeBytes": 104857600,
+    "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+    "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+    "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+    "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+    "internalQueryProhibitBlockingMergeOnMongoS": 0,
+    "internalQueryMaxAddToSetBytes": 104857600,
+    "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+    "internalQueryFrameworkControl": "forceClassicEngine"
+  },
+  "ok": 1,
+  "$clusterTime": {
+    "clusterTime": {
+      "$timestamp": "7685336873698328754"
+    },
+    "signature": {
+      "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "keyId": 0
+    }
+  },
+  "operationTime": {
+    "$timestamp": "7685336873698328754"
+  }
+}
