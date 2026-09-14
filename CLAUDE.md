@@ -207,7 +207,7 @@ document-model counterpart to a materialised view.
 {
   "_id": ObjectId("..."),
   "alertId": "A-0000091",             // human-quotable, unique
-  "txnId": "T-000000123",             // join key to transactions
+  "txnId": "T-000000123",             // join key to transactions; null for ANALYST-origin alerts (§8 D-22)
   "cardId": "C-0417",
   "ts": ISODate("..."),
   "severity": "HIGH",                 // LOW | MEDIUM | HIGH
@@ -286,6 +286,7 @@ can see them declared in source. `GET /api/admin/indexes` lists them live.
 | 13 | alerts_archive | `{ dismissedAt: 1 }` **expireAfterSeconds: 604800** | TTL | 7 d archive |
 | 14 | blocked_cards | `{ cardId: 1 }` unique | unique | block/unblock upsert |
 | 15 | ring_snapshots | `{ discoveredAt: -1 }` | single | ring history |
+| 16 | alerts_archive | `{ originalId: -1 }` | single | `AlertWriter`'s alertId counter reseed (§8 D-23) |
 
 **Index #10 is the one to be able to defend.** It follows **ESR** — Equality
 (`status`), Sort (`ts`), Range — with `severity` placed second because the triage
@@ -626,6 +627,8 @@ is the only step that can take tens of milliseconds.
 | D-19 | 2026-09-14 | Card pool **500 → 4,000**; devices **→ 2,200**; IPs **→ 3,200**; hard **20 s per-card cooldown** in the benign generator | Same bug class as D-04, on VELOCITY instead of fan-out: 500 cards at 150 txn/s gives a mean of 18 txns/card/60s against a threshold of 5. A structural cooldown plus a pool sized to sustain throughput under it removes the failure mode entirely rather than reducing its odds. Also closes a gap D-04 left open: IPs get the same ≤2-cards cap as devices. See §5 "Baseline traffic — population and pacing". |
 | D-20 | 2026-09-14 | Dropped `card:{c}:lastgeo`; IMPOSSIBLE_TRAVEL reads the two most recent members of `card:{c}:txns` (`ZREVRANGE ... 0 1 WITHSCORES`) and calls `GEODIST` on `card:{c}:geo` between them | `lastgeo` as specified is unimplementable against the frozen §7 order: step 3 (write) runs before step 4 (read), so an unconditional overwrite in step 3 means step 4 only ever sees the *current* point — the detector would silently never fire. The ZSet-based fix has no such ordering hazard (both points already exist in the sorted set by read time) and — better — it is a literal `GEODIST` call, matching the spec §9 narration ("that's `GEODIST` between the last two points") more directly than parsing a string and computing haversine distance by hand would have. |
 | D-21 | 2026-09-14 | Travel injector's second leg uses a **real** ~2 s wall-clock gap, not a simulated 4-minute future `ts` | Caught live: a future `ts` on leg 2 makes step 3's *own* trim floor (`ts − windowSeconds`) for that same write treat everything at real "now" — including leg 1 — as outside the window, so leg 1 gets evicted by leg 2's own window update before step 4 ever compares them; no alert fired. Worse, the future-scored entry then sits as "most recent by score" for the real 4 minutes that follow, silently liable to pair with *later*, unrelated organic traffic on that card. The windowing model assumes `ts ≈ real time` everywhere (every TTL, every trim floor, every detector); injecting a value that violates that assumption corrupts shared state, not just the one detector it was aimed at. Fix: real ~2 s gap. It is *more* dramatic for the demo (~3,168,000 km/h implied over ~1,760 km, not 26,400), not less, and every other timestamp in the system keeps meaning what it says. |
+| D-22 | 2026-09-14 | `alerts.txnId` is nullable in the validator (`bsonType: ["string","null"]`) | A manual, analyst-raised alert (Create, triage) has no single triggering transaction to anchor to — that is the whole point of it. The original schema declared `txnId` strictly `"string"`, which would reject the natural `null` value on insert. Pipeline E's `$lookup` already handles a missing match gracefully (`preserveNullAndEmptyArrays`), so nothing downstream needed to change, only the validator. |
+| D-23 | 2026-09-14 | Index **#16** added: `alerts_archive { originalId: -1 }`. `AlertWriter`'s counter now seeds from the max issued alertId (via this index), not `countDocuments()`. `MongoValidatorConfig` now runs `collMod` on every boot, not just `createCollection` on first boot | Two bugs caught live in the same test session. (1) `countDocuments()` undershoots badly once anything is ever deleted — after deleting most test alerts, the counter restarted near zero while thousands of already-issued ids still sat ahead of it, so every insert collided repeatedly until the (then 3-attempt) retry budget was exhausted outright, not just occasionally bumped. Seeding from the true max (across both `alerts` and its archive) fixes this at the source; the retry budget is raised to 10 anyway as cheap insurance. (2) The `alerts.txnId` nullability fix (D-22) silently didn't take effect on the already-existing `alerts` collection, because the validator was only ever applied at `createCollection` time — `collMod` on every boot makes it self-healing instead of requiring a manual `docker compose down -v` after every schema edit. |
 
 ---
 

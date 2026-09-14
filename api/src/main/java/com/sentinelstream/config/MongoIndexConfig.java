@@ -66,6 +66,9 @@ public class MongoIndexConfig {
         // --- ring_snapshots (#15) ---
         ensure("ring_snapshots", new Index().on("discoveredAt", Sort.Direction.DESC));                         // #15
 
+        // --- alerts_archive (#16, added S6 / D-23) ---
+        ensure("alerts_archive", new Index().on("originalId", Sort.Direction.DESC));                           // #16
+
         logSummary();
     }
 

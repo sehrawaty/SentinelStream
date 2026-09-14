@@ -15,9 +15,11 @@ import org.springframework.stereotype.Component;
 /**
  * CLAUDE.md §4.2 -- creates the five `sentinel` collections with their
  * $jsonSchema validators (validationLevel: moderate, validationAction: error)
- * if they don't already exist. Runs once at boot, idempotently: MongoDB
- * errors on createCollection for a name that already exists, so this checks
- * first rather than relying on exception handling.
+ * at boot: `createCollection` the first time, `collMod` on every later boot
+ * so an existing collection's validator stays in sync with the current
+ * schema in source rather than freezing whatever was in place the first
+ * time it was created -- a schema tweak (e.g. §8 D-22) must not require a
+ * manual `docker compose down -v` to actually take effect.
  *
  * MongoIndexConfig depends on this (via @DependsOn) so indexes are never
  * built against an implicitly-created, unvalidated collection.
@@ -43,21 +45,30 @@ public class MongoValidatorConfig {
     }
 
     private void create(String name, String schemaJson) {
-        if (mongoTemplate.collectionExists(name)) {
-            log.info("Collection '{}' already exists -- skipping create", name);
+        Document validatorDoc = Document.parse(schemaJson);
+        MongoDatabase db = mongoTemplate.getDb();
+
+        if (!mongoTemplate.collectionExists(name)) {
+            ValidationOptions validationOptions = new ValidationOptions()
+                .validator(validatorDoc)
+                .validationLevel(ValidationLevel.MODERATE)
+                .validationAction(ValidationAction.ERROR);
+            db.createCollection(name, new CreateCollectionOptions().validationOptions(validationOptions));
+            log.info("Created collection '{}' with $jsonSchema validator (moderate/error)", name);
             return;
         }
-        Document validatorDoc = Document.parse(schemaJson);
-        ValidationOptions validationOptions = new ValidationOptions()
-            .validator(validatorDoc)
-            .validationLevel(ValidationLevel.MODERATE)
-            .validationAction(ValidationAction.ERROR);
-        CreateCollectionOptions createOptions = new CreateCollectionOptions()
-            .validationOptions(validationOptions);
 
-        MongoDatabase db = mongoTemplate.getDb();
-        db.createCollection(name, createOptions);
-        log.info("Created collection '{}' with $jsonSchema validator (moderate/error)", name);
+        // Collection already exists (e.g. from an earlier run) -- collMod keeps
+        // its validator in sync with the current schema on every boot, rather
+        // than freezing whatever validator happened to be in place the first
+        // time this collection was created. Self-healing was needed live: the
+        // txnId nullability fix (§8 D-22) silently didn't apply to an existing
+        // `alerts` collection until this was added.
+        db.runCommand(new Document("collMod", name)
+            .append("validator", validatorDoc)
+            .append("validationLevel", "moderate")
+            .append("validationAction", "error"));
+        log.info("Collection '{}' already exists -- validator refreshed via collMod", name);
     }
 
     // --- schemas mirror CLAUDE.md §4.2 exactly; do not drift independently ---
@@ -107,7 +118,7 @@ public class MongoValidatorConfig {
             "required": ["alertId","txnId","cardId","ts","severity","score","origin","rules","status","notes","statusHistory","cardBlocked","updatedAt"],
             "properties": {
               "alertId": { "bsonType": "string" },
-              "txnId": { "bsonType": "string" },
+              "txnId": { "bsonType": ["string","null"] },
               "cardId": { "bsonType": "string" },
               "ts": { "bsonType": "date" },
               "severity": { "enum": ["LOW","MEDIUM","HIGH"] },

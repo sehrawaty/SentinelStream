@@ -47,4 +47,41 @@ public class AlertMapper {
             .append("resolution", null)
             .append("updatedAt", now);
     }
+
+    /**
+     * PLAN.md Part 2 "Create" -- an analyst-raised case with no detector
+     * firing behind it. `txnId` is left null: a manual alert isn't anchored
+     * to one specific transaction, so pipeline E's $lookup simply finds
+     * nothing to join, which the drawer already handles gracefully
+     * (preserveNullAndEmptyArrays).
+     */
+    public Document toManualDocument(String alertId, String cardId, String severity, String reason, String author) {
+        Date now = new Date();
+        Document rule = new Document()
+            .append("type", "MANUAL_REVIEW")
+            .append("weight", 0)
+            .append("evidence", new Document("reason", reason));
+        Document statusHistoryEntry = new Document()
+            .append("from", null)
+            .append("to", "NEW")
+            .append("by", author)
+            .append("at", now);
+
+        return new Document()
+            .append("alertId", alertId)
+            .append("txnId", null)
+            .append("cardId", cardId)
+            .append("ts", now)
+            .append("severity", severity)
+            .append("score", 0)
+            .append("origin", "ANALYST")
+            .append("rules", List.of(rule))
+            .append("status", "NEW")
+            .append("assignee", author)
+            .append("notes", List.of())
+            .append("statusHistory", List.of(statusHistoryEntry))
+            .append("cardBlocked", false)
+            .append("resolution", null)
+            .append("updatedAt", now);
+    }
 }
