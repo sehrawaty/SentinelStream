@@ -15,7 +15,7 @@ export default function TopCardsPanel({ onSelectCard }) {
     <div className="panel">
       <div className="panel-title">Watchlist — top cards by alert count (24h)</div>
       {rows.length === 0 ? (
-        <div className="empty-state">No alerts yet.</div>
+        <div className="empty-state">No alerts yet. Inject a fraud pattern to see detection live.</div>
       ) : (
         <div className="table-wrap">
           <table>

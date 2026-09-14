@@ -57,7 +57,7 @@ const STYLE = [
   },
   {
     selector: 'node[kind = "card"][?blocked]',
-    style: { 'background-color': '#B3503D' }, // --critical
+    style: { 'background-color': '#D0725D' }, // --critical
   },
   {
     selector: 'node[kind = "entity"]',
@@ -164,7 +164,12 @@ export default function RingPanel({ initialCardId, onClose }) {
   // this during the demo." cytoscape lays out against the container's size
   // at mount time; toggling the CSS class alone leaves the graph rendered at
   // its old (small) dimensions until told otherwise, so resize+fit run after
-  // the width transition (150ms, matched to .ring-graph's own transition).
+  // .drawer's own 160ms width transition (styles.css, itself gated behind
+  // prefers-reduced-motion) finishes -- matched here so this fires exactly
+  // once the container has actually reached its new size, not mid-transition.
+  // (An earlier version of this comment claimed a transition existed here
+  // without one actually being defined anywhere -- caught re-reading this
+  // slice's own work while doing the reduced-motion pass, not live.)
   const toggleFullscreen = () => {
     setFullscreen((f) => !f);
     setTimeout(() => {

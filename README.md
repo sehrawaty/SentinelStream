@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 16**.
+> follows is current through **Slice 17**.
 
 ## Prerequisites
 
@@ -73,7 +73,8 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 14 — STOMP `/ws`, three live channels, settlement tape
 - [x] Slice 15 — edge-trace animation, tape print-in, fullscreen graph
 - [x] Slice 16 — rule-activity chart, all-rings panel
-- [ ] Slice 17+ — responsive/a11y pass, README/report/deck
+- [x] Slice 17 — empty/loading/error states, contrast pass
+- [ ] Slice 18 — README/report/deck
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
 demonstrable live from the dashboard at http://localhost:3000 — no curl
@@ -298,5 +299,42 @@ Verified: production build clean; grepped the served bundle for both
 panels' UI strings and confirmed `/api/rings` and the KPI facet's `byRule`
 field return the expected shapes through the nginx-proxied port. **Not
 verified in an actual browser** — same caveat as Slices 13-15.
+
+### Empty/loading/error states, contrast pass (Slice 17)
+
+Matches spec §7.6's quality floor — the one item the plan's cut order keeps
+even under time pressure is the contrast fix, so that's covered here too:
+
+- **Empty states name the next action**, per spec ("No alerts yet. Inject a
+  fraud pattern to see detection live." — not "No data available."). The one
+  remaining holdout (`TopCardsPanel`'s bare "No alerts yet.") is now
+  consistent with every other panel.
+- **Settlement tape loading** — real skeleton rows in the tape's exact grid
+  geometry (not a spinner or generic text), so the first live row doesn't
+  shift the layout when it lands. Shown only before the STOMP connection
+  has ever succeeded; a plain "Waiting for traffic…" covers the
+  connected-but-idle case.
+- **Stream disconnected banner** — "Stream disconnected. Reconnecting in
+  3s." (the exact wording spec §7.6 gives as its example), shown only after
+  a connection that had succeeded once drops. An inline banner, not a toast.
+- **Contrast fix, re-verified against the new theme** — computed WCAG
+  contrast ratios for every text/panel pairing after the palette change and
+  caught a real regression: `--critical`'s first pick (`#B3503D`) checked
+  out by eye but only hit 3.19:1 against `--panel` — below the 4.5:1 AA
+  floor for the small (10px) pill/status text it's actually used as, where
+  the theme it replaced (`#E2574C`, 4.58:1) had passed. Lightened to
+  `#D0725D` (4.82:1) and rebuilt. `--text-mute` (the pairing spec §7.7
+  itself calls out) holds at 7.3:1, comfortably clear.
+- A stray inaccuracy caught while doing this pass, unrelated to the above:
+  Slice 15's fullscreen-toggle comment claimed a 150ms width transition that
+  was never actually implemented (the toggle snapped instantly). Added the
+  real transition (gated behind `prefers-reduced-motion`, consistent with
+  every other animation in the app) and corrected the comment.
+
+Verified: production build clean; grepped the served bundle to confirm the
+new critical color, the skeleton/error-banner CSS and copy, and the
+`TopCardsPanel` text fix all actually shipped; recomputed contrast ratios in
+Node against the exact shipped hex values. **Not verified in an actual
+browser** — same caveat as every UI slice this session.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.
