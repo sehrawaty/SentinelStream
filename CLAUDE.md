@@ -454,8 +454,12 @@ defaults and the ones quoted in the report.
 
 Calibrated so the spec §7.4 mock is truthful: `IMPOSSIBLE_TRAVEL` alone → HIGH,
 `VELOCITY` alone → MEDIUM, `ENTITY_FANOUT` alone → MEDIUM, fan-out + velocity → 95
-HIGH. No rule alone lands in LOW, so LOW means "one weak rule plus noise" — which is
-what it should mean.
+HIGH. `AMOUNT_ANOMALY` alone → **25, LOW** — the one rule weak enough by itself to
+land there, which is exactly right: a single statistical outlier with nothing else
+corroborating it should read as "worth a glance," not "escalate." (An earlier draft
+of this section claimed no rule alone lands in LOW; live testing in Slice 7 showed
+that claim was simply wrong — AMOUNT_ANOMALY does, correctly. Corrected here rather
+than left standing.)
 
 ### Injectable patterns (spec §5, corrected per §8 D-02/D-03)
 | Endpoint | Behaviour |
@@ -631,6 +635,7 @@ is the only step that can take tens of milliseconds.
 | D-22 | 2026-09-14 | `alerts.txnId` is nullable in the validator (`bsonType: ["string","null"]`) | A manual, analyst-raised alert (Create, triage) has no single triggering transaction to anchor to — that is the whole point of it. The original schema declared `txnId` strictly `"string"`, which would reject the natural `null` value on insert. Pipeline E's `$lookup` already handles a missing match gracefully (`preserveNullAndEmptyArrays`), so nothing downstream needed to change, only the validator. |
 | D-23 | 2026-09-14 | Index **#16** added: `alerts_archive { originalId: -1 }`. `AlertWriter`'s counter now seeds from the max issued alertId (via this index), not `countDocuments()`. `MongoValidatorConfig` now runs `collMod` on every boot, not just `createCollection` on first boot | Two bugs caught live in the same test session. (1) `countDocuments()` undershoots badly once anything is ever deleted — after deleting most test alerts, the counter restarted near zero while thousands of already-issued ids still sat ahead of it, so every insert collided repeatedly until the (then 3-attempt) retry budget was exhausted outright, not just occasionally bumped. Seeding from the true max (across both `alerts` and its archive) fixes this at the source; the retry budget is raised to 10 anyway as cheap insurance. (2) The `alerts.txnId` nullability fix (D-22) silently didn't take effect on the already-existing `alerts` collection, because the validator was only ever applied at `createCollection` time — `collMod` on every boot makes it self-healing instead of requiring a manual `docker compose down -v` after every schema edit. |
 | D-24 | 2026-09-14 | `TransactionMapper.toDocument` now takes the detector evaluation's `flagged`/`score`, set at construction time — not written back afterward | Caught live building pipeline A (§5 aggregation, "fraud rate by category"): every document showed `flagged: false`, because the mapper hardcoded that value and nothing ever updated it after scoring. D-11's whole justification for denormalising `flagged`/`score` onto `transactions` was to let pipeline A skip a `$lookup` to `alerts` — a field that is always false defeats that purpose while looking like it works (no error, just wrong numbers). Fixed at the source rather than added as a follow-up update: §7 step 4 (detectors) already runs before step 5 (persist), so the evaluation is available when the document is built; no extra write is needed. |
+| D-25 | 2026-09-14 | `scripts/seed.mjs` reconciles PLAN.md Part 7 against what Slices 1-9 actually built: draws seed cards from the D-19 4,000-card range (not the plan's pre-correction "500 cards"), asserts 16 Mongo indexes (not 15, per D-23), uses the ring IPs `10.10.10.10`/`10.10.10.20` that `InjectionService` actually uses (not the plan's placeholder `203.0.113.x`), creates the four Neo4j constraints itself (Slice 11's projector doesn't exist yet), and omits the plan's step 8 (warming a Redis window for C-9001) because the travel injector built in Slice 5 already clears and self-supplies both legs of its own comparison (§8 D-21) — no pre-warming would do anything | A seed script written against a stale plan document would either silently seed the wrong shape of data or fail its own assertions against the real, corrected system. Reconciling it explicitly, once, here, is cheaper than debugging a "the seed script says 15 indexes but there are 16" mismatch during a rehearsal. |
 
 ---
 

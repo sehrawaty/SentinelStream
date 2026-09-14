@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 9**.
+> follows is current through **Slice 10**.
 
 ## Prerequisites
 
@@ -65,7 +65,7 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 7 — aggregation pipelines A–E
 - [x] Slice 8 — `explain()` evidence capture (`docs/evidence/`)
 - [x] Slice 9 — minimal UI for the graded path ⛳ **grading gate**
-- [ ] Slice 10 — seed script
+- [x] Slice 10 — seed script, deterministic demo state
 - [ ] Slice 11+ — Neo4j projector, ring queries, graph panel, live tape, polish
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
@@ -106,5 +106,31 @@ collection scan (or a less-specific fallback index) to the intended
 index seek, cutting documents examined by up to **~3,000×**. One negative
 control (a regex over note bodies) is included deliberately — no index
 helps it, and the report says so rather than only showing green rows.
+
+### Deterministic demo state
+
+```bash
+cd scripts && npm install     # once
+node seed.mjs --wipe          # ~12s: wipes and reseeds Mongo, Redis, Neo4j
+bash smoke.sh                 # ~2s: create/update/delete/aggregate/explain/ring sanity check
+```
+
+`--wipe` gives a byte-identical demo every time (seeded `mulberry32` PRNG, no
+`Math.random`): 50,000 transactions and 2,000 alerts with a deliberate,
+non-uniform shape — JEWELRY carries a **~6× fraud-rate lead** over every
+other category (pipeline A's bar chart needs a clear leader, not a flat
+spread), severities split 60/30/10 LOW/MEDIUM/HIGH, statuses split
+40/25/20/15 NEW/INVESTIGATING/CONFIRMED_FRAUD/FALSE_POSITIVE, and alerts
+land across every minute of the last hour so the timeline chart is
+populated, not spiky. Plus the seeded ring insurance policy: 6 cards
+(`C-9001`…`C-9006`) sharing one device and two IPs, written to both Mongo
+*and* Neo4j directly (constraints included — Slice 11's projector doesn't
+exist yet, so this script owns that narrow piece of §4.4 on its own), with
+a pre-built `ring_snapshots` document and one card (`C-9004`) already
+blocked. `C-9001` sits at `NEW`/HIGH — the row to click first.
+
+Re-running without `--wipe` is idempotent: the PRNG is seeded, so a second
+run regenerates identical ids and the writes are treated as no-ops rather
+than erroring or duplicating.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.

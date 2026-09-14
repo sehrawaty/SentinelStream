@@ -3,6 +3,8 @@
   "type": "module",
   "private": true,
   "dependencies": {
-    "mongodb": "^6.10.0"
+    "mongodb": "^6.10.0",
+    "neo4j-driver": "^5.26.0",
+    "redis": "^4.7.1"
   }
 }
