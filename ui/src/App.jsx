@@ -8,17 +8,20 @@ import TopCardsPanel from './components/TopCardsPanel.jsx';
 import AdminIndexDrawer from './components/AdminIndexDrawer.jsx';
 import CreateAlertModal from './components/CreateAlertModal.jsx';
 import InjectorControls from './components/InjectorControls.jsx';
+import RingPanel from './components/RingPanel.jsx';
 
 export default function App() {
   const [selectedAlertId, setSelectedAlertId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [ringCardId, setRingCardId] = useState(null);
 
   return (
     <div className="app">
       <div className="topbar">
         <span className="brand"><span className="live-dot" />SENTINELSTREAM</span>
         <KpiStrip />
-        <InjectorControls />
+        <InjectorControls onViewRing={setRingCardId} />
+        <button className="admin-toggle" onClick={() => setRingCardId('C-9001')}>View ring</button>
         <AdminIndexDrawer />
       </div>
 
@@ -33,14 +36,19 @@ export default function App() {
         </div>
         <div className="col">
           <CategoryRiskChart />
-          <TopCardsPanel onSelectCard={() => {}} />
+          <TopCardsPanel onSelectCard={setRingCardId} />
         </div>
       </div>
 
       {selectedAlertId && (
-        <AlertDetailDrawer alertId={selectedAlertId} onClose={() => setSelectedAlertId(null)} />
+        <AlertDetailDrawer
+          alertId={selectedAlertId}
+          onClose={() => setSelectedAlertId(null)}
+          onViewRing={setRingCardId}
+        />
       )}
       {showCreate && <CreateAlertModal onClose={() => setShowCreate(false)} />}
+      {ringCardId && <RingPanel initialCardId={ringCardId} onClose={() => setRingCardId(null)} />}
     </div>
   );
 }

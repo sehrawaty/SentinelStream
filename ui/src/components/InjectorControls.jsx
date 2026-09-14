@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 
 // Spec §5 injectable patterns, wired to the buttons the demo script (§9) drives.
-export default function InjectorControls() {
+export default function InjectorControls({ onViewRing }) {
   const [busy, setBusy] = useState(null);
   const [lastResult, setLastResult] = useState(null);
 
@@ -11,7 +11,7 @@ export default function InjectorControls() {
     setLastResult(null);
     try {
       const result = await fn();
-      setLastResult({ name, ok: true, detail: JSON.stringify(result) });
+      setLastResult({ name, ok: true, detail: JSON.stringify(result), result });
     } catch (e) {
       setLastResult({ name, ok: false, detail: e.message });
     } finally {
@@ -35,6 +35,11 @@ export default function InjectorControls() {
       <button className="btn danger" disabled={!!busy} onClick={() => fire('ring', api.injectRing)}>
         {busy === 'ring' ? 'Injecting…' : 'Inject ring'}
       </button>
+      {lastResult?.name === 'ring' && lastResult.ok && onViewRing && (
+        <button className="btn" onClick={() => onViewRing(lastResult.result.cardIds[0])}>
+          View ring
+        </button>
+      )}
     </div>
   );
 }

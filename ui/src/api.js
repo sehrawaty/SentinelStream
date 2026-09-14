@@ -54,6 +54,11 @@ export const api = {
   indexes: () => request('/api/admin/indexes'),
   mongoStats: () => request('/api/admin/mongo-stats'),
   health: () => request('/api/health'),
+
+  // rings — CLAUDE.md §4.4
+  ringForCard: (cardId) => request(`/api/rings/${cardId}`),
+  ringSnapshot: (cardId) => request(`/api/rings/${cardId}/snapshot`),
+  allRings: (minFanout = 3, limit = 20) => request(`/api/rings?${new URLSearchParams({ minFanout, limit })}`),
 };
 
 // CLAUDE.md §4.5 -- mirrors AlertStatus.java's legal-transition map so the UI

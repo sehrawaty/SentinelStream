@@ -345,3 +345,12 @@ tbody tr.selected { background: var(--panel-2); outline: 1px solid var(--signal)
   padding: 5px 10px; border-radius: var(--radius); font-size: 11px;
 }
 .index-table td, .index-table th { font-size: 11px; }
+
+/* ---- ring panel (Slice 13, cytoscape-fcose) ---- */
+.ring-graph {
+  width: 100%;
+  height: 420px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}

@@ -4,7 +4,7 @@ import { api, LEGAL_TRANSITIONS, DELETE_ELIGIBLE, RESOLUTION_REQUIRED } from '..
 
 const ANALYST = 'analyst.yash'; // no auth in this project (PLAN.md Assumption #2) -- fixed identity
 
-export default function AlertDetailDrawer({ alertId, onClose }) {
+export default function AlertDetailDrawer({ alertId, onClose, onViewRing }) {
   const qc = useQueryClient();
   const [noteBody, setNoteBody] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
@@ -125,6 +125,11 @@ export default function AlertDetailDrawer({ alertId, onClose }) {
               {DELETE_ELIGIBLE.has(alert.status) && (
                 <button className="btn danger" disabled={dismissMutation.isPending} onClick={() => dismissMutation.mutate()}>
                   Dismiss (delete)
+                </button>
+              )}
+              {onViewRing && (
+                <button className="btn" onClick={() => onViewRing(alert.cardId)}>
+                  View ring
                 </button>
               )}
               {!alert.blocked ? (

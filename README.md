@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 12**.
+> follows is current through **Slice 13**.
 
 ## Prerequisites
 
@@ -69,7 +69,8 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 11 — Neo4j constraints + batched graph projector
 - [x] Slice 12 — `RING_FOR_CARD` / `ALL_RINGS` queries, cooldown-gated async
       trigger, `ring_snapshots` persistence
-- [ ] Slice 13+ — graph panel, live tape, polish
+- [x] Slice 13 — Cytoscape ring panel, `fcose` layout
+- [ ] Slice 14+ — live tape, STOMP channels, polish
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
 demonstrable live from the dashboard at http://localhost:3000 — no curl
@@ -177,5 +178,24 @@ existing 30s stale-entry reclaim task detects a missing group (via the full
 exception cause chain, not just the top-level message) and recreates it —
 so `docker logs` shows `"Processed"` counts continuing straight through a
 live `--wipe` with no gap and no manual intervention required.
+
+### Ring panel (Slice 13)
+
+`RingPanel.jsx` renders `RING_FOR_CARD`'s result with `cytoscape` +
+`cytoscape-fcose` (versions pinned in CLAUDE.md §2): card nodes round, entity
+nodes (device/IP) square, a blocked card in red, the seed card outlined. Three
+entry points open it: the topbar's **View ring** button (defaults to the
+seeded `C-9001`), a row click in the Watchlist panel, and a **View ring**
+button in the alert detail drawer — plus the injector panel offers one
+pointed at the just-injected ring's first card. The panel also accepts any
+typed card id, re-running the live Neo4j query rather than reading a cached
+snapshot, so it reflects the graph as it stands right now.
+
+Verified via `curl` that the built bundle actually includes `cytoscape`/
+`cytoscape-fcose` and that `/api/rings/{cardId}` (reverse-proxied through
+nginx exactly as the browser would call it) returns the shape the panel
+expects. **Not yet verified in an actual browser** — no headless-browser tool
+was available in this session, so the graph's on-screen rendering, layout,
+and click interactions are unconfirmed; worth a manual check before the demo.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.
