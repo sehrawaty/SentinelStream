@@ -107,7 +107,7 @@ sentinelstream/
     screenshots/
   api/                        Spring Boot
     src/main/java/.../
-      generator/  consumer/  detect/  persist/  graph/  triage/  stats/  ws/  control/
+      generator/  consumer/  detect/  persist/  graph/  triage/  stats/  ws/  control/  admin/
       config/MongoIndexConfig.java      index registry, §4.3
       config/MongoValidatorConfig.java  JSON Schema, §4.2
   ui/                         React + Vite
