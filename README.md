@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 14**.
+> follows is current through **Slice 15**.
 
 ## Prerequisites
 
@@ -71,7 +71,8 @@ docker compose down -v       # wipe everything, including the replica set
       trigger, `ring_snapshots` persistence
 - [x] Slice 13 — Cytoscape ring panel, `fcose` layout
 - [x] Slice 14 — STOMP `/ws`, three live channels, settlement tape
-- [ ] Slice 15+ — motion polish, secondary panels, responsive/a11y pass
+- [x] Slice 15 — edge-trace animation, tape print-in, fullscreen graph
+- [ ] Slice 16+ — secondary panels, responsive/a11y pass, README/report/deck
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
 demonstrable live from the dashboard at http://localhost:3000 — no curl
@@ -231,5 +232,37 @@ alert's `ts` field now matches `GET /api/alerts/{alertId}`'s plain-ISO-string
 format exactly (an early draft used BSON's `Document.toJson()`, which wraps
 dates as `{"$date": "..."}` instead — caught by the same test client before
 it ever reached a browser; see CLAUDE.md §8 D-33).
+
+### Motion polish (Slice 15)
+
+Matches the design spec's §7.5/7.6 motion contract:
+
+- **Settlement tape print-in** — each new row wipes in over 120ms (a
+  `clip-path` reveal, not literal per-glyph typing — same visual read, far
+  cheaper than a JS interval per character), then sits still.
+- **Flagged-row fade** — a flagged tape row gets a left `--signal` border and
+  one 400ms background fade (`animation-iteration-count` implicitly 1, so it
+  never loops into a persistent pulse).
+- **Ring edge-trace** — on load, a ring's edges reveal one at a time, timed
+  so the *whole set* finishes at 600ms regardless of ring size (a 6-edge and
+  a 40-edge ring both trace in exactly 600ms, not proportionally longer for
+  the bigger one). The only animation over 600ms in the app, matching the
+  spec's "the only animation longer than half a second" framing.
+- **`prefers-reduced-motion`** — both effects are defined only inside a
+  `@media (prefers-reduced-motion: no-preference)` block (tape) or an
+  explicit `matchMedia` check (ring edge-trace), so reduced-motion disables
+  the animation and keeps the colour states, per spec, by construction
+  rather than a runtime toggle that could drift out of sync.
+- **Fullscreen ring graph** — a button in the ring panel header expands it
+  to the full viewport width and calls Cytoscape's `resize()`/`fit()` after
+  the CSS transition, so the graph re-lays-out to fill the new space instead
+  of staying pinned at its original small-panel size.
+
+Verified: production build is clean, and the served CSS/JS bundles were
+grepped to confirm the new animation names, the `prefers-reduced-motion`
+media query, and the fullscreen toggle logic actually shipped. **Not
+verified in an actual browser** — same caveat as Slices 13/14: no
+headless-browser tool was available this session, so the print-in timing,
+edge-trace pacing, and fullscreen resize behavior are unconfirmed on screen.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.

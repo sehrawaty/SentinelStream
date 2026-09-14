@@ -351,7 +351,7 @@ tbody tr.selected { background: var(--panel-2); outline: 1px solid var(--signal)
 }
 .index-table td, .index-table th { font-size: 11px; }
 
-/* ---- settlement tape (Slice 14) ---- */
+/* ---- settlement tape (Slice 14/15) ---- */
 .tape {
   max-height: 300px;
   overflow-y: auto;
@@ -365,16 +365,38 @@ tbody tr.selected { background: var(--panel-2); outline: 1px solid var(--signal)
   align-items: center;
   padding: 4px 6px;
   border-bottom: 1px solid var(--line);
+  border-left: 2px solid transparent;
   font-size: 11px;
   font-family: var(--font-mono);
-  animation: tape-in 0.2s ease-out;
-}
-@keyframes tape-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 .tape-row.declined { color: var(--text-mute); text-decoration: line-through; }
-.tape-row.flagged { color: var(--signal); }
+.tape-row.flagged { color: var(--signal); border-left-color: var(--signal); }
+
+/* spec §7.5/7.6 -- "each arriving row prints character-by-character over
+   ~120ms" (approximated with a clip-path wipe, not literal per-glyph typing
+   -- same visual read at a fraction of the DOM/JS cost) "then sits still";
+   flagged rows additionally get "a single 400ms background fade; they do
+   not pulse forever" -- animation-iteration-count:1 is what keeps that
+   promise instead of a looping highlight. Gated behind reduced-motion's
+   no-preference so §7.6's "disable print-in and edge-tracing, keep the
+   colour states" is satisfied by simply never defining these animations
+   under the opposite media query, not by a JS branch. */
+@media (prefers-reduced-motion: no-preference) {
+  .tape-row {
+    animation: tape-print-in 120ms steps(12, end);
+  }
+  .tape-row.flagged {
+    animation: tape-print-in 120ms steps(12, end), tape-flag-fade 400ms ease-out 1;
+  }
+}
+@keyframes tape-print-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+@keyframes tape-flag-fade {
+  from { background: rgba(242, 160, 61, 0.25); }
+  to { background: transparent; }
+}
 .tape-row .tag {
   font-size: 9px;
   padding: 1px 5px;
@@ -392,4 +414,13 @@ tbody tr.selected { background: var(--panel-2); outline: 1px solid var(--signal)
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+}
+
+/* spec §7.4 -- "Graph panel expands to fullscreen on click." Slice 15. */
+.drawer-fullscreen {
+  width: 100vw !important;
+  max-width: 100vw;
+}
+.drawer-fullscreen .ring-graph {
+  height: calc(100vh - 260px);
 }

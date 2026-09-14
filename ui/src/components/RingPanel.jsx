@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, forwardRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
@@ -90,7 +90,9 @@ const STYLE = [
   },
 ];
 
-function RingGraph({ ring, seedCardId }) {
+const REDUCED_MOTION = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const RingGraph = forwardRef(function RingGraph({ ring, seedCardId }, cyHandleRef) {
   const containerRef = useRef(null);
   const cyRef = useRef(null);
 
@@ -103,16 +105,37 @@ function RingGraph({ ring, seedCardId }) {
       wheelSensitivity: 0.25,
     });
     cy.layout({ name: 'fcose', animate: false, nodeSeparation: 90, idealEdgeLength: 90 }).run();
+
+    // spec §7.6 -- "Ring detection: the graph traces its edges once, over
+    // 600ms, then settles. This is the only animation longer than half a
+    // second in the entire application." Edges start invisible and reveal
+    // one at a time, evenly splitting the 600ms budget across however many
+    // edges this ring has, so a 6-edge ring and a 40-edge ring both finish
+    // tracing at the same wall-clock moment rather than one taking 15x
+    // longer than the other. Skipped entirely under reduced-motion (§7.6)
+    // -- edges are simply visible from the first frame, not animated in.
+    const edges = cy.edges();
+    if (edges.length > 0 && !REDUCED_MOTION()) {
+      const perEdgeMs = 600 / edges.length;
+      edges.forEach((edge, i) => {
+        edge.style('opacity', 0);
+        edge.animate({ style: { opacity: 1 } }, { duration: Math.max(perEdgeMs, 20), delay: i * perEdgeMs });
+      });
+    }
+
     cyRef.current = cy;
+    if (cyHandleRef) cyHandleRef.current = cy;
     return () => cy.destroy();
   }, [ring, seedCardId]);
 
   return <div ref={containerRef} className="ring-graph" />;
-}
+});
 
 export default function RingPanel({ initialCardId, onClose }) {
   const [cardId, setCardId] = useState(initialCardId || '');
   const [queryCardId, setQueryCardId] = useState(initialCardId || '');
+  const [fullscreen, setFullscreen] = useState(false);
+  const cyHandleRef = useRef(null);
 
   useEffect(() => {
     if (initialCardId) {
@@ -132,10 +155,23 @@ export default function RingPanel({ initialCardId, onClose }) {
     if (cardId.trim()) setQueryCardId(cardId.trim());
   };
 
+  // spec §7.4 -- "Graph panel expands to fullscreen on click — you will want
+  // this during the demo." cytoscape lays out against the container's size
+  // at mount time; toggling the CSS class alone leaves the graph rendered at
+  // its old (small) dimensions until told otherwise, so resize+fit run after
+  // the width transition (150ms, matched to .ring-graph's own transition).
+  const toggleFullscreen = () => {
+    setFullscreen((f) => !f);
+    setTimeout(() => {
+      cyHandleRef.current?.resize();
+      cyHandleRef.current?.fit(undefined, 30);
+    }, 160);
+  };
+
   return (
     <>
       <div className="drawer-backdrop" onClick={onClose} />
-      <div className="drawer" style={{ width: 'min(760px, 95vw)' }}>
+      <div className={`drawer ${fullscreen ? 'drawer-fullscreen' : ''}`} style={fullscreen ? undefined : { width: 'min(760px, 95vw)' }}>
         <div className="drawer-header">
           <div>
             <h3>Entity ring — Neo4j RING_FOR_CARD</h3>
@@ -144,7 +180,14 @@ export default function RingPanel({ initialCardId, onClose }) {
               <code>C-9001</code> for the clean seeded demo ring (§8 D-31).
             </div>
           </div>
-          <button className="drawer-close" onClick={onClose} aria-label="Close">×</button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+            {ring?.found && (
+              <button className="btn" onClick={toggleFullscreen}>
+                {fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              </button>
+            )}
+            <button className="drawer-close" onClick={onClose} aria-label="Close">×</button>
+          </div>
         </div>
 
         <form onSubmit={submit} style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -177,7 +220,7 @@ export default function RingPanel({ initialCardId, onClose }) {
               <span><b style={{ color: 'var(--text)' }}>{ring.entityNodes.length}</b> shared entities</span>
               <span><b style={{ color: 'var(--text)' }}>{ring.queryMs}</b>ms query</span>
             </div>
-            <RingGraph ring={ring} seedCardId={queryCardId} />
+            <RingGraph ring={ring} seedCardId={queryCardId} ref={cyHandleRef} />
             <div style={{ display: 'flex', gap: 14, fontSize: 10, color: 'var(--text-mute)', marginTop: 8 }}>
               <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#3FA7A0', marginRight: 4 }} />card</span>
               <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#E2574C', marginRight: 4 }} />blocked card</span>
