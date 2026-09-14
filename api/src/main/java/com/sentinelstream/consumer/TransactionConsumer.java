@@ -5,6 +5,7 @@ import com.sentinelstream.detect.RulesEngine;
 import com.sentinelstream.detect.WindowService;
 import com.sentinelstream.generator.StreamProperties;
 import com.sentinelstream.graph.GraphProjector;
+import com.sentinelstream.graph.RingQueryTrigger;
 import com.sentinelstream.persist.AlertWriter;
 import com.sentinelstream.persist.MongoBulkWriter;
 import com.sentinelstream.persist.TransactionMapper;
@@ -21,11 +22,8 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * CLAUDE.md §7 — the frozen consumer side-effect order. This slice (S11)
- * implements steps 1-7, 9 (partial) and 10; step 8 (ring query) remains an
- * ordered stub filled in by S12 — the numbering in the comments below is
- * not decorative, it is where each future slice's code goes, in this exact
- * position, because §7's order is frozen.
+ * CLAUDE.md §7 — the frozen consumer side-effect order. This slice (S12)
+ * implements all 10 steps.
  *
  * Used both by the live stream listener and by {@link StreamConsumerConfig}'s
  * PEL reclaimer, so a redelivered message (live or reclaimed) goes through
@@ -48,6 +46,7 @@ public class TransactionConsumer {
     private final RulesEngine rulesEngine;
     private final AlertWriter alertWriter;
     private final GraphProjector graphProjector;
+    private final RingQueryTrigger ringQueryTrigger;
     private final ObjectMapper json = new ObjectMapper();
     private final AtomicLong processedTotal = new AtomicLong(0);
     private final AtomicLong alertsTotal = new AtomicLong(0);
@@ -56,7 +55,7 @@ public class TransactionConsumer {
                                 RedisKeysProperties keysProps, MongoBulkWriter bulkWriter,
                                 TransactionMapper mapper, WindowService windows,
                                 RulesEngine rulesEngine, AlertWriter alertWriter,
-                                GraphProjector graphProjector) {
+                                GraphProjector graphProjector, RingQueryTrigger ringQueryTrigger) {
         this.redis = redis;
         this.streamProps = streamProps;
         this.keysProps = keysProps;
@@ -66,6 +65,7 @@ public class TransactionConsumer {
         this.rulesEngine = rulesEngine;
         this.alertWriter = alertWriter;
         this.graphProjector = graphProjector;
+        this.ringQueryTrigger = ringQueryTrigger;
     }
 
     public void process(MapRecord<String, String, String> record) {
@@ -128,7 +128,12 @@ public class TransactionConsumer {
             //    entity graph tracks what a card *attempted*, blocked or not.
             graphProjector.enqueue(cardId, deviceId, ip, ts);
 
-            // 8. RING QUERY                   — TODO Slice 12
+            // 8. RING QUERY — cooldown-gated, async, never inline (§7). Fires
+            //    only when ENTITY_FANOUT actually fired this evaluation, not
+            //    on every alert -- this is the exact handoff spec §4 narrates.
+            if (eval != null && eval.firedRules().stream().anyMatch(r -> "ENTITY_FANOUT".equals(r.type()))) {
+                ringQueryTrigger.maybeTrigger(cardId);
+            }
 
             // 9. PUBLISH — alerts:live now; /topic/txn sampling is Slice 14 (needs STOMP infra).
             if (alertId != null) {

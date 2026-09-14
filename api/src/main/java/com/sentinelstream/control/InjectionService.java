@@ -130,8 +130,15 @@ public class InjectionService {
     /** cardCount distinct cards onto one shared device + rotating shared IPs -- fires ENTITY_FANOUT. */
     public List<String> injectRing() {
         int n = props.getRing().getCardCount();
-        String deviceId = props.getRing().getDeviceId();
-        List<String> ips = props.getRing().getIps();
+        // A fresh device/IP identity per call (§8 D-30) -- not the fixed
+        // D-SEED-01/10.10.10.x that scripts/seed.mjs also uses. Reusing the
+        // seed's identity meant every repeated injection (rehearsal, testing)
+        // accumulated onto the SAME Neo4j device node, since MERGE never
+        // resets state -- caught live: after three test injections sharing
+        // that device, even the seeded ring's own query returned 102 cards
+        // instead of 6. A fresh id per injection keeps each ring isolated.
+        String deviceId = "D-INJ-" + java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        List<String> ips = List.of(randomInjectedIp(), randomInjectedIp());
         long staggerMs = props.getRing().getStaggerSeconds() * 1000L;
 
         List<Card> shuffled = new ArrayList<>(pool.cards());
@@ -160,6 +167,12 @@ public class InjectionService {
 
     private double round2(double v) {
         return Math.round(v * 100.0) / 100.0;
+    }
+
+    /** 10.20.x.x -- a range distinct from both the organic pool's IPs and the seed script's 10.10.10.x ring. */
+    private String randomInjectedIp() {
+        var rnd = ThreadLocalRandom.current();
+        return "10.20." + rnd.nextInt(0, 256) + "." + rnd.nextInt(1, 255);
     }
 
     @PreDestroy

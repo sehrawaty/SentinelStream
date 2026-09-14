@@ -98,7 +98,5 @@ sentinel:
     ring:
       cardCount: 6
       staggerSeconds: 2
-      deviceId: D-SEED-01
-      ips:
-        - 10.10.10.10
-        - 10.10.10.20
+      # deviceId/ips are generated fresh per injection, not configured here
+      # -- CLAUDE.md §8 D-30.

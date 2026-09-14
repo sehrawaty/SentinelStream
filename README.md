@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 11**.
+> follows is current through **Slice 12**.
 
 ## Prerequisites
 
@@ -67,7 +67,9 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 9 — minimal UI for the graded path ⛳ **grading gate**
 - [x] Slice 10 — seed script, deterministic demo state
 - [x] Slice 11 — Neo4j constraints + batched graph projector
-- [ ] Slice 12+ — ring queries, graph panel, live tape, polish
+- [x] Slice 12 — `RING_FOR_CARD` / `ALL_RINGS` queries, cooldown-gated async
+      trigger, `ring_snapshots` persistence
+- [ ] Slice 13+ — graph panel, live tape, polish
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
 demonstrable live from the dashboard at http://localhost:3000 — no curl
@@ -148,5 +150,32 @@ node/relationship counts climbing over a few seconds), queue depth stays
 flat (not backlogging), and the seeded ring from Slice 10 survives untouched
 alongside it. `GET /api/admin/mongo-stats` also reports the projector's
 queue depth / flush count / dropped count, next to the Mongo bulk writer's.
+
+### Ring queries
+
+`GET /api/rings/{cardId}` runs `RING_FOR_CARD` (bounded `*1..6` traversal,
+shared-entity filter — CLAUDE.md §4.4) directly against Neo4j; `GET
+/api/rings` runs the global `ALL_RINGS` sweep. When the consumer's
+`ENTITY_FANOUT` detector fires, `RingQueryTrigger` runs the same query
+asynchronously (cooldown-gated via `ring:cooldown:{cardId}`, never inline on
+the hot path) and persists the result through `RingSnapshotWriter` into
+`ring_snapshots`, so the demo can re-render a past ring without re-querying
+Neo4j. `POST /api/control/inject/ring` fires a fresh 6-card ring on a
+newly-generated device/IP identity each call (not the seed script's fixed
+`D-SEED-01`, which would otherwise accumulate contamination across repeated
+test runs — CLAUDE.md §8 D-30). Live-verified end to end: injecting a ring
+produces `"ENTITY_FANOUT fired"` → `"Ring snapshot R-000N persisted"` log
+lines within milliseconds, and the seeded ring (`C-9001`) stays at exactly 6
+cards across repeated live injections.
+
+**Consumer resilience (§8 D-32).** `scripts/seed.mjs --wipe`'s `FLUSHDB`
+deletes `txn:stream` and its consumer group even while the API's own
+subscription is live. `StreamConsumerConfig` now survives this without a
+restart: the read subscription is built with `cancelOnError(t -> false)` so
+a `NOGROUP` read error no longer kills the poll loop outright, and the
+existing 30s stale-entry reclaim task detects a missing group (via the full
+exception cause chain, not just the top-level message) and recreates it —
+so `docker logs` shows `"Processed"` counts continuing straight through a
+live `--wipe` with no gap and no manual intervention required.
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.

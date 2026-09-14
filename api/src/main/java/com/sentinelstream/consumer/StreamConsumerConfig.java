@@ -73,10 +73,28 @@ public class StreamConsumerConfig {
 
         container = StreamMessageListenerContainer.create(connectionFactory, options);
 
-        subscription = container.receive(
-            Consumer.from(streamProps.getConsumerGroup(), consumerName),
-            StreamOffset.create(streamProps.getKey(), ReadOffset.lastConsumed()),
-            processor::process);
+        // Built explicitly (not container.receive(...)) so cancelOnError can be
+        // overridden -- §8 D-32. The container's default StreamReadRequest cancels
+        // the whole subscription permanently on its FIRST read error, of any kind.
+        // A `seed.mjs --wipe` FLUSHDB while this subscription is live throws NOGROUP
+        // on the very next poll, which killed the subscription outright: no more
+        // polls, ever, group-recreation in reclaimStale() notwithstanding, since
+        // there was nothing left running to benefit from a recreated group. Caught
+        // live: after the group self-heal below started firing, "Processed" logs
+        // never resumed and XINFO GROUPS showed consumers=0 -- the read task itself
+        // was gone, not just erroring. cancelOnError(t -> false) keeps the poll loop
+        // alive through NOGROUP (and any other transient read error); the next poll
+        //500ms later succeeds as soon as the group exists again.
+        StreamMessageListenerContainer.StreamReadRequest<String> request =
+            StreamMessageListenerContainer.StreamReadRequest.builder(
+                    StreamOffset.<String>create(streamProps.getKey(), ReadOffset.lastConsumed()))
+                .consumer(Consumer.from(streamProps.getConsumerGroup(), consumerName))
+                .autoAcknowledge(false)
+                .cancelOnError(t -> false)
+                .errorHandler(t -> log.warn("Stream poll error (subscription stays alive): {}", t.getMessage()))
+                .build();
+
+        subscription = container.register(request, processor::process);
 
         container.start();
         log.info("Consumer '{}' subscribed to '{}' as group '{}'",
@@ -120,7 +138,26 @@ public class StreamConsumerConfig {
                 streamProps.getKey(), streamProps.getConsumerGroup(),
                 org.springframework.data.domain.Range.unbounded(), 100);
         } catch (Exception e) {
-            log.warn("Could not read pending entries for reclaim: {}", e.getMessage());
+            // §8 D-32 -- a `FLUSHDB` (e.g. scripts/seed.mjs --wipe) run against an
+            // already-subscribed consumer deletes txn:stream and its group out from
+            // under the live StreamMessageListenerContainer. The container's own
+            // poll loop does NOT recreate the group and errors silently forever;
+            // this was caught live as a growing, unprocessed XLEN with zero
+            // "Processed" log lines. Confirmed live that the container itself needs
+            // nothing more than the group existing again to resume on its own next
+            // poll -- so recreating it here, the next time this task runs, is a
+            // complete self-heal with no restart required.
+            // The driver wraps this several layers deep (top-level message is just
+            // "Error in execution"; NOGROUP is on a nested cause) -- caught live via
+            // the top-level message NOT containing "NOGROUP" at all, so the first
+            // version of this check never matched. Walk the cause chain instead.
+            if (containsNoGroup(e)) {
+                log.warn("Consumer group '{}' missing on '{}' (stream was likely flushed externally) "
+                    + "-- recreating so the live subscription can resume", streamProps.getConsumerGroup(), streamProps.getKey());
+                ensureGroupExists();
+            } else {
+                log.warn("Could not read pending entries for reclaim: {}", e.getMessage());
+            }
             return;
         }
         if (pending == null || pending.isEmpty()) {
@@ -147,5 +184,14 @@ public class StreamConsumerConfig {
             MapRecord<String, String, String> record = (MapRecord<String, String, String>) (MapRecord<String, ?, ?>) raw;
             processor.process(record);
         }
+    }
+
+    private static boolean containsNoGroup(Throwable t) {
+        for (Throwable cur = t; cur != null; cur = cur.getCause()) {
+            if (cur.getMessage() != null && cur.getMessage().contains("NOGROUP")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

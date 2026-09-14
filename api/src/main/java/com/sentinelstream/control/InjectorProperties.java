@@ -2,8 +2,6 @@ package com.sentinelstream.control;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.List;
-
 /** Binds sentinel.injectors.* -- CLAUDE.md §5 "Injectable patterns". */
 @ConfigurationProperties(prefix = "sentinel.injectors")
 public class InjectorProperties {
@@ -38,17 +36,15 @@ public class InjectorProperties {
     }
 
     public static class Ring {
+        // deviceId/ips are NOT configured here (§8 D-30) -- InjectionService
+        // generates a fresh, non-colliding identity per call instead of
+        // reusing a fixed one, which is what let repeated injections
+        // accumulate onto scripts/seed.mjs's dedicated ring device.
         private int cardCount = 6;
         private int staggerSeconds = 2;
-        private String deviceId = "D-SEED-01";
-        private List<String> ips = List.of("10.10.10.10", "10.10.10.20");
         public int getCardCount() { return cardCount; }
         public void setCardCount(int v) { this.cardCount = v; }
         public int getStaggerSeconds() { return staggerSeconds; }
         public void setStaggerSeconds(int v) { this.staggerSeconds = v; }
-        public String getDeviceId() { return deviceId; }
-        public void setDeviceId(String v) { this.deviceId = v; }
-        public List<String> getIps() { return ips; }
-        public void setIps(List<String> v) { this.ips = v; }
     }
 }
