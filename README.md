@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 8**.
+> follows is current through **Slice 9**.
 
 ## Prerequisites
 
@@ -40,6 +40,7 @@ curl http://localhost:8080/api/health
 
 | Service | URL |
 |---|---|
+| Dashboard (UI) | http://localhost:3000 |
 | API | http://localhost:8080 |
 | Neo4j Browser | http://localhost:7474 (neo4j / sentinel-dev) |
 | Mongo | `mongodb://localhost:27017/sentinel?replicaSet=rs0` |
@@ -63,13 +64,37 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 6 — triage API (full CRUD, block-card cross-store transaction)
 - [x] Slice 7 — aggregation pipelines A–E
 - [x] Slice 8 — `explain()` evidence capture (`docs/evidence/`)
-- [ ] Slice 9 — minimal UI for the graded path ⛳ **grading gate**
+- [x] Slice 9 — minimal UI for the graded path ⛳ **grading gate**
 - [ ] Slice 10 — seed script
 - [ ] Slice 11+ — Neo4j projector, ring queries, graph panel, live tape, polish
 
-**All four graded rubric elements (CRUD, indexing, aggregation) are
-backend-complete as of Slice 8** — reachable via REST/curl, proven live
-against the running stack. Slice 9 puts a UI in front of them.
+⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
+demonstrable live from the dashboard at http://localhost:3000 — no curl
+needed. Triage queue (filtered/paged, hits index #10), alert detail drawer
+(pipeline E's `$lookup` context, evidence per fired rule), status lifecycle
+with only-legal-transitions shown, notes (add/edit/delete), block-card
+(cross-store transaction) and dismiss (archive-then-delete), a "Raise case"
+button for manual Create, the `$facet` KPI strip polling every 3s, the
+Category Risk (pipeline A) and Rule Activity (pipeline B) charts, a
+Watchlist leaderboard (pipeline C), and a live index registry viewer
+(`GET /api/admin/indexes`) are all wired in and verified against the
+running stack.
+
+### UI
+
+React 18 + Vite, served by nginx in production (`ui/Dockerfile`), which
+reverse-proxies `/api/*` to the `api` container (`ui/nginx.conf`) — the
+browser only ever talks to one origin, so no CORS configuration exists
+anywhere. Dev mode: `cd ui && npm install && npm run dev` (Vite proxies
+`/api` to `localhost:8080` instead — see `ui/vite.config.js`).
+
+Design tokens follow spec §7.2/7.3 (dark ground, amber/vermilion/teal
+accent triad, Space Grotesk + IBM Plex). One deliberate correction: the
+spec's own `--text-mute` (`#7D93A3`) sits right at ~4.75:1 contrast on
+`--panel` — spec §7.7 flags this exact pair as the one most likely to
+fail — so it's lightened (`#9FB0BD`) for real margin. Motion (settlement
+tape print-in, ring edge-trace) is Slice 15, deliberately deferred; this
+slice is static and functional by design.
 
 ### Index evidence
 

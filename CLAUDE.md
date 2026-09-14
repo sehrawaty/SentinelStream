@@ -68,6 +68,7 @@ schema mid-project. If a change looks necessary, stop and raise it.
 | MongoDB | 1.0 GB | `--wiredTigerCacheSizeGB 0.5` |
 | Redis | 768 MB | `maxmemory 512mb`, `maxmemory-policy noeviction` |
 | API | 1.0 GB | `-XX:MaxRAMPercentage=75` |
+| UI | 256 MB | static nginx serving a Vite build — no runtime JS engine |
 
 **If Neo4j OOMs, lower the heap — never raise it** (spec §12).
 

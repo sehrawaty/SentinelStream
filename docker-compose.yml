@@ -110,6 +110,17 @@ services:
     mem_limit: 1g
     restart: unless-stopped
 
+  ui:
+    build:
+      context: ./ui
+    container_name: sentinel-ui
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    mem_limit: 256m
+    restart: unless-stopped
+
 volumes:
   redis-data:
   mongo-data:
