@@ -266,6 +266,18 @@ verified in an actual browser** — same caveat as Slices 13/14: no
 headless-browser tool was available this session, so the print-in timing,
 edge-trace pacing, and fullscreen resize behavior are unconfirmed on screen.
 
+### Theme
+
+The UI runs a warm-charcoal palette with earthy accents (terracotta, brick,
+sage, plum) rather than the navy/neon "dashboard template" look — still
+dark (this runs on a projector for a live demo), just grounded in warmer
+neutrals. All 8 tokens live in `styles.css`'s `:root`; the only places that
+repeat literal hex instead of `var(...)` are Cytoscape's node/edge styles in
+`RingPanel.jsx` (it renders to `<canvas>`, which can't read CSS custom
+properties, so those are kept in sync by hand against the same values).
+[Palette preview](https://claude.ai/code/artifact/5b70bb0d-1222-4698-8327-9b3659380e0f)
+shows the tokens applied to the real component shapes with sample data.
+
 ### Secondary panels (Slice 16)
 
 Two panels the plan marks cuttable, built because both reuse data/endpoints

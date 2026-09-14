@@ -2,18 +2,24 @@
    deliberately absent here: that's Slice 15, explicitly deferred. */
 
 :root {
-  --ground:    #0D141B;
-  --panel:     #141E27;
-  --panel-2:   #1B2733;
-  --line:      #22303C;
-  --text:      #E4EBF0;
-  --text-mute: #9FB0BD; /* spec's #7D93A3 sits right at ~4.75:1 on --panel -- spec §7.7 flags
-                            this exact pair as the one most likely to fail contrast, so this
-                            is lightened for real margin rather than a knife's-edge pass */
-  --signal:    #F2A03D;
-  --critical:  #E2574C;
-  --calm:      #3FA7A0;
-  --ring:      #8B7FD4;
+  /* Warm charcoal ground with earthy accents -- terracotta/rust/sage rather
+     than the navy-and-neon "security dashboard" cliche. Kept dark (this is
+     still a SOC-style live-monitoring tool, meant to run on a projector for
+     a long demo) but grounded in warm neutrals instead of blue-black, so it
+     reads as a considered palette rather than a default dark-mode template. */
+  --ground:    #1C1A17;
+  --panel:     #242019;
+  --panel-2:   #2E2A23;
+  --line:      #3D372D;
+  --text:      #EDE6DC;
+  --text-mute: #B8AC9C; /* ~7.3:1 on --panel -- spec §7.7 flags text-mute/panel as the pair
+                            most likely to fail contrast, so this is lightened for real
+                            margin rather than a knife's-edge pass (same reasoning as the
+                            palette this replaced, re-verified against the new colors) */
+  --signal:    #C97D4A; /* terracotta -- warnings, flagged rows, MEDIUM severity */
+  --critical:  #B3503D; /* brick red -- HIGH severity, blocked, destructive actions */
+  --calm:      #7C9473; /* sage green -- calm/resolved states, the live-dot */
+  --ring:      #8F7FA3; /* muted plum -- graph accent, distinct from the above three */
 
   --font-display: 'Space Grotesk', sans-serif;
   --font-body: 'IBM Plex Sans', sans-serif;
@@ -394,7 +400,7 @@ tbody tr.selected { background: var(--panel-2); outline: 1px solid var(--signal)
   to { clip-path: inset(0 0 0 0); }
 }
 @keyframes tape-flag-fade {
-  from { background: rgba(242, 160, 61, 0.25); }
+  from { background: rgba(201, 125, 74, 0.25); }
   to { background: transparent; }
 }
 .tape-row .tag {

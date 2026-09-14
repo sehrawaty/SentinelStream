@@ -7,10 +7,10 @@ import { api } from '../api.js';
 // dedupes the two into one poll rather than fetching the facet pipeline
 // twice every 3s.
 const RULE_COLOR = {
-  VELOCITY: '#F2A03D',
-  AMOUNT_ANOMALY: '#3FA7A0',
-  IMPOSSIBLE_TRAVEL: '#E2574C',
-  ENTITY_FANOUT: '#8B7FD4',
+  VELOCITY: 'var(--signal)',
+  AMOUNT_ANOMALY: 'var(--calm)',
+  IMPOSSIBLE_TRAVEL: 'var(--critical)',
+  ENTITY_FANOUT: 'var(--ring)',
 };
 
 export default function RuleActivityChart() {

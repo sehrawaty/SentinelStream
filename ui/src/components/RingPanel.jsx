@@ -29,14 +29,19 @@ function buildElements(ring, seedCardId) {
   return [...cardEls, ...entityEls, ...edgeEls];
 }
 
+// Cytoscape renders to <canvas>, not the DOM -- it can't read CSS custom
+// properties, so these are the palette's literal hex values (styles.css
+// :root), kept in sync by hand. Card=sage, seed outline=terracotta,
+// blocked=brick, device=plum, ip=a darker plum shade for a fourth distinct
+// hue without introducing a fifth palette color just for this one variant.
 const STYLE = [
   {
     selector: 'node[kind = "card"]',
     style: {
       shape: 'ellipse',
-      'background-color': '#3FA7A0',
+      'background-color': '#7C9473', // --calm
       label: 'data(label)',
-      color: '#E4EBF0',
+      color: '#EDE6DC', // --text
       'font-size': 9,
       'font-family': 'IBM Plex Mono, monospace',
       'text-valign': 'bottom',
@@ -48,19 +53,19 @@ const STYLE = [
   },
   {
     selector: 'node[kind = "card"][?seed]',
-    style: { 'border-width': 3, 'border-color': '#F2A03D', width: 34, height: 34 },
+    style: { 'border-width': 3, 'border-color': '#C97D4A', width: 34, height: 34 }, // --signal
   },
   {
     selector: 'node[kind = "card"][?blocked]',
-    style: { 'background-color': '#E2574C' },
+    style: { 'background-color': '#B3503D' }, // --critical
   },
   {
     selector: 'node[kind = "entity"]',
     style: {
       shape: 'round-rectangle',
-      'background-color': '#8B7FD4',
+      'background-color': '#8F7FA3', // --ring
       label: 'data(label)',
-      color: '#E4EBF0',
+      color: '#EDE6DC', // --text
       'font-size': 9,
       'font-family': 'IBM Plex Mono, monospace',
       'text-valign': 'bottom',
@@ -71,19 +76,19 @@ const STYLE = [
   },
   {
     selector: 'node[entityType = "Ip"]',
-    style: { 'background-color': '#6B6094' },
+    style: { 'background-color': '#6E6178' }, // darker --ring shade
   },
   {
     selector: 'edge',
     style: {
       width: 1.5,
-      'line-color': '#22303C',
+      'line-color': '#3D372D', // --line
       'curve-style': 'bezier',
       label: 'data(label)',
       'font-size': 7,
-      color: '#9FB0BD',
+      color: '#B8AC9C', // --text-mute
       'font-family': 'IBM Plex Mono, monospace',
-      'text-background-color': '#141E27',
+      'text-background-color': '#242019', // --panel
       'text-background-opacity': 0.85,
       'text-background-padding': 1,
     },
@@ -222,11 +227,11 @@ export default function RingPanel({ initialCardId, onClose }) {
             </div>
             <RingGraph ring={ring} seedCardId={queryCardId} ref={cyHandleRef} />
             <div style={{ display: 'flex', gap: 14, fontSize: 10, color: 'var(--text-mute)', marginTop: 8 }}>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#3FA7A0', marginRight: 4 }} />card</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#E2574C', marginRight: 4 }} />blocked card</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#8B7FD4', marginRight: 4 }} />device</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#6B6094', marginRight: 4 }} />ip</span>
-              <span><span style={{ display: 'inline-block', width: 8, height: 8, border: '2px solid #F2A03D', marginRight: 4 }} />seed</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--calm)', marginRight: 4 }} />card</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--critical)', marginRight: 4 }} />blocked card</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: 'var(--ring)', marginRight: 4 }} />device</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#6E6178', marginRight: 4 }} />ip</span>
+              <span><span style={{ display: 'inline-block', width: 8, height: 8, border: '2px solid var(--signal)', marginRight: 4 }} />seed</span>
             </div>
           </>
         )}
