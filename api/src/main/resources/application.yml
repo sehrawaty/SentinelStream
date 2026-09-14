@@ -79,3 +79,20 @@ sentinel:
     queueCapacity: 5000
     flushDocs: 200
     flushIntervalMs: 500
+
+  # CLAUDE.md §5 — injectable fraud patterns (spec §5, corrected per §8 D-02/D-03)
+  injectors:
+    velocity:
+      count: 12
+      windowSeconds: 20
+    travel:
+      fromCity: Chennai
+      toCity: Delhi
+      secondLegDelaySeconds: 2   # real wall-clock gap -- CLAUDE.md §8 D-21
+    ring:
+      cardCount: 6
+      staggerSeconds: 2
+      deviceId: D-SEED-01
+      ips:
+        - 10.10.10.10
+        - 10.10.10.20

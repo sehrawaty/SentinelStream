@@ -44,4 +44,17 @@ public final class Card {
         }
         return lastTxnAtMillis.compareAndSet(prev, now);
     }
+
+    /**
+     * Unconditionally resets the cooldown clock to "now", regardless of
+     * eligibility. Used by fraud injectors (control package) to exclude a
+     * card from the benign generator's own rotation for the standard
+     * cooldown window while a deliberate pattern is being fired on it --
+     * tryClaim's conditional semantics aren't enough there, because if the
+     * card's existing cooldown is already most of the way through, its
+     * *natural* expiry could arrive before the injection sequence finishes.
+     */
+    public void forceClaim(long now) {
+        lastTxnAtMillis.set(now);
+    }
 }

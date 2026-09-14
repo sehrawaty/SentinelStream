@@ -132,8 +132,7 @@ All times are epoch milliseconds. All TTLs are refreshed on write.
 | `idem:txn:{t}` | String | **900 s** | `"1"`, set `SET NX EX 900` | consumer step 2 | consumer step 2 |
 | `card:{c}:txns` | ZSet | **3600 s** | score `ts`, member `{t}` | step 3 | VELOCITY |
 | `card:{c}:amts` | ZSet | **3600 s** | score `ts`, member `"{t}|{amount}"` | step 3 | AMOUNT_ANOMALY |
-| `card:{c}:lastgeo` | String | **3600 s** | `"{lat},{lon},{ts}"` | step 3 | IMPOSSIBLE_TRAVEL |
-| `card:{c}:geo` | GEO (ZSet) | **3600 s** | member `{t}` | step 3 | `GEODIST`, map panel |
+| `card:{c}:geo` | GEO (ZSet) | **3600 s** | member `{t}` | step 3 | IMPOSSIBLE_TRAVEL (`GEODIST`), map panel |
 | `device:{d}:cards` | ZSet | **1800 s** | score `ts`, member `{c}` | step 3 | ENTITY_FANOUT |
 | `ip:{i}:cards` | ZSet | **1800 s** | score `ts`, member `{c}` | step 3 | ENTITY_FANOUT |
 | `blocklist:cards` | Set | **none** | `{c}` | **triage API** (analyst) | consumer step 1 (`SISMEMBER`) |
@@ -219,8 +218,8 @@ document-model counterpart to a materialised view.
     { "type": "VELOCITY", "weight": 40,
       "evidence": { "count": 12, "windowSec": 60, "threshold": 5 } },
     { "type": "IMPOSSIBLE_TRAVEL", "weight": 70,
-      "evidence": { "fromCity": "Chennai", "toCity": "Delhi", "km": 1760.4,
-                    "minutes": 4, "impliedKmh": 26406.0, "threshold": 900 } }
+      "evidence": { "fromCity": "Chennai", "toCity": "Delhi", "km": 1756.3,
+                    "seconds": 2.0, "impliedKmh": 3162000.0, "threshold": 900 } }
   ],
 
   "status": "NEW",                    // §4.5 lifecycle
@@ -460,7 +459,7 @@ what it should mean.
 | Endpoint | Behaviour |
 |---|---|
 | `POST /api/control/inject/velocity` | one card, **12 txns in 20 s** (threshold is 5/60 s) |
-| `POST /api/control/inject/travel` | Chennai → Delhi, **4 min** apart → 26,400 km/h |
+| `POST /api/control/inject/travel` | Chennai → Delhi, **2 s** real gap → ~3,168,000 km/h (§8 D-21) |
 | `POST /api/control/inject/ring` | **6** cards onto shared device `D-SEED-01` + 2 IPs, staggered 2 s |
 | `POST /api/control/generator/pause` | pause benign traffic (added — deterministic demo) |
 | `POST /api/control/generator/resume` | resume |
@@ -558,7 +557,7 @@ XREADGROUP (group: fraud-detectors, consumer: ${HOSTNAME})
  3. WINDOW UPDATES       pipelined, single round trip:
  │                       ZREMRANGEBYSCORE (trim) ×4
  │                       ZADD card:{c}:txns / :amts · GEOADD card:{c}:geo
- │                       SET card:{c}:lastgeo · ZADD device:{d}:cards / ip:{i}:cards
+ │                       ZADD device:{d}:cards / ip:{i}:cards
  │                       INCR metrics:txn:{epochMin} · EXPIRE all
  │
  4. EVALUATE DETECTORS   4 rules, pure functions over the window reads → score, band
@@ -625,6 +624,8 @@ is the only step that can take tens of milliseconds.
 | D-17 | 2026-09-14 | Seed volume **50,000 transactions / 2,000 alerts** | Needed so the `explain()` before/after gap (COLLSCAN → IXSCAN) is visually obvious on a projector; at a few hundred docs the timing difference is noise. |
 | D-18 | 2026-09-14 | Gradle (not Maven) for the API build | Default choice; mechanical to swap later if needed. |
 | D-19 | 2026-09-14 | Card pool **500 → 4,000**; devices **→ 2,200**; IPs **→ 3,200**; hard **20 s per-card cooldown** in the benign generator | Same bug class as D-04, on VELOCITY instead of fan-out: 500 cards at 150 txn/s gives a mean of 18 txns/card/60s against a threshold of 5. A structural cooldown plus a pool sized to sustain throughput under it removes the failure mode entirely rather than reducing its odds. Also closes a gap D-04 left open: IPs get the same ≤2-cards cap as devices. See §5 "Baseline traffic — population and pacing". |
+| D-20 | 2026-09-14 | Dropped `card:{c}:lastgeo`; IMPOSSIBLE_TRAVEL reads the two most recent members of `card:{c}:txns` (`ZREVRANGE ... 0 1 WITHSCORES`) and calls `GEODIST` on `card:{c}:geo` between them | `lastgeo` as specified is unimplementable against the frozen §7 order: step 3 (write) runs before step 4 (read), so an unconditional overwrite in step 3 means step 4 only ever sees the *current* point — the detector would silently never fire. The ZSet-based fix has no such ordering hazard (both points already exist in the sorted set by read time) and — better — it is a literal `GEODIST` call, matching the spec §9 narration ("that's `GEODIST` between the last two points") more directly than parsing a string and computing haversine distance by hand would have. |
+| D-21 | 2026-09-14 | Travel injector's second leg uses a **real** ~2 s wall-clock gap, not a simulated 4-minute future `ts` | Caught live: a future `ts` on leg 2 makes step 3's *own* trim floor (`ts − windowSeconds`) for that same write treat everything at real "now" — including leg 1 — as outside the window, so leg 1 gets evicted by leg 2's own window update before step 4 ever compares them; no alert fired. Worse, the future-scored entry then sits as "most recent by score" for the real 4 minutes that follow, silently liable to pair with *later*, unrelated organic traffic on that card. The windowing model assumes `ts ≈ real time` everywhere (every TTL, every trim floor, every detector); injecting a value that violates that assumption corrupts shared state, not just the one detector it was aimed at. Fix: real ~2 s gap. It is *more* dramatic for the demo (~3,168,000 km/h implied over ~1,760 km, not 26,400), not less, and every other timestamp in the system keeps meaning what it says. |
 
 ---
 
