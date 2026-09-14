@@ -8,7 +8,7 @@ Course project — see `docs/NoSQL_Project.md` for the design spec and
 side-effect ordering, decision log).
 
 > This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 13**.
+> follows is current through **Slice 14**.
 
 ## Prerequisites
 
@@ -70,7 +70,8 @@ docker compose down -v       # wipe everything, including the replica set
 - [x] Slice 12 — `RING_FOR_CARD` / `ALL_RINGS` queries, cooldown-gated async
       trigger, `ring_snapshots` persistence
 - [x] Slice 13 — Cytoscape ring panel, `fcose` layout
-- [ ] Slice 14+ — live tape, STOMP channels, polish
+- [x] Slice 14 — STOMP `/ws`, three live channels, settlement tape
+- [ ] Slice 15+ — motion polish, secondary panels, responsive/a11y pass
 
 ⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
 demonstrable live from the dashboard at http://localhost:3000 — no curl
@@ -197,5 +198,38 @@ nginx exactly as the browser would call it) returns the shape the panel
 expects. **Not yet verified in an actual browser** — no headless-browser tool
 was available in this session, so the graph's on-screen rendering, layout,
 and click interactions are unconfirmed; worth a manual check before the demo.
+
+### Live channels (Slice 14)
+
+`WebSocketConfig` registers a STOMP broker at `/ws` (SockJS-compatible, but
+the UI connects with a plain WebSocket to `/ws/websocket` via `@stomp/stompjs`
+7.0 — no `sockjs-client` dependency needed). Three topics, per CLAUDE.md §6:
+
+- `/topic/alerts` — full alert document, unsampled. `RedisStompBridge`
+  relays Redis's existing `alerts:live` Pub/Sub channel (already wired in
+  Slice 5) straight onto STOMP.
+- `/topic/rings` — same relay pattern, off `rings:live` (already wired in
+  Slice 12's `RingQueryTrigger`).
+- `/topic/txn` — sampled to ~8 msg/s (§8 D-05), flagged transactions always
+  pass. Populated directly from `TransactionConsumer` via `TxnBroadcaster`,
+  not through Redis — it's a single-process, in-memory rate gate, not a
+  cross-process notification, so it isn't in the §4.1 key registry (§8 D-33).
+
+`SettlementTape.jsx` renders `/topic/txn` as a live-scrolling tape (declined
+rows struck through, flagged rows highlighted, capped at 200 DOM rows). The
+topbar's live-dot now reflects actual STOMP connection state
+(`useStompConnected`) instead of being static, and a live `/topic/alerts`
+message nudges the triage queue and KPI strip to refetch immediately rather
+than waiting out their poll interval.
+
+Verified with a raw STOMP test client (a small Node `ws` script, not a
+browser — same caveat as Slice 13's ring panel above) against both the API directly
+(`localhost:8080/ws/websocket`) and through the nginx-proxied UI port
+(`localhost:3000/ws/websocket`, which needed `nginx.conf`'s `Upgrade`/
+`Connection` headers added): all three topics deliver messages, and a live
+alert's `ts` field now matches `GET /api/alerts/{alertId}`'s plain-ISO-string
+format exactly (an early draft used BSON's `Document.toJson()`, which wraps
+dates as `{"$date": "..."}` instead — caught by the same test client before
+it ever reached a browser; see CLAUDE.md §8 D-33).
 
 See `docs/PLAN.md` Part 6 for the full build order and cut list.

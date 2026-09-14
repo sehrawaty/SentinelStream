@@ -67,19 +67,26 @@ public class AlertWriter {
         }
     }
 
-    /** Returns the persisted alertId, or null if the write failed after retries. */
-    public String write(String txnId, String cardId, long ts, RulesEngine.Evaluation eval) {
+    /**
+     * Returns the persisted alert document (not just its id), or null if the
+     * write failed after retries. Slice 14 needs the full document to relay
+     * onto /topic/alerts (CLAUDE.md §6 -- "full alert document, unsampled");
+     * re-fetching it after insert would be a second round trip for something
+     * already sitting in hand.
+     */
+    public Document write(String txnId, String cardId, long ts, RulesEngine.Evaluation eval) {
         return insertWithRetry(alertId -> mapper.toDocument(alertId, txnId, cardId, ts, eval), "txn " + txnId);
     }
 
     /** PLAN.md Part 2 "Create" -- analyst-raised, no detector behind it. Returns the persisted alertId. */
     public String writeManual(String cardId, String severity, String reason, String author) {
-        return insertWithRetry(
+        Document doc = insertWithRetry(
             alertId -> mapper.toManualDocument(alertId, cardId, severity, reason, author),
             "manual alert for card " + cardId);
+        return doc == null ? null : doc.getString("alertId");
     }
 
-    private String insertWithRetry(Function<String, Document> docBuilder, String context) {
+    private Document insertWithRetry(Function<String, Document> docBuilder, String context) {
         MongoCollection<Document> coll = mongoTemplate.getCollection("alerts");
 
         for (int attempt = 0; attempt < 10; attempt++) {
@@ -87,7 +94,7 @@ public class AlertWriter {
             Document doc = docBuilder.apply(alertId);
             try {
                 coll.insertOne(doc);
-                return alertId;
+                return doc;
             } catch (MongoWriteException e) {
                 if (e.getError().getCategory() == com.mongodb.ErrorCategory.DUPLICATE_KEY) {
                     log.warn("alertId {} collided (attempt {}), retrying with next id", alertId, attempt);

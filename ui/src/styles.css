@@ -86,8 +86,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   display: inline-block;
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: var(--calm);
+  background: var(--text-mute);
   margin-right: 6px;
+  transition: background 0.3s;
+}
+.live-dot.connected {
+  background: var(--calm);
+  box-shadow: 0 0 6px var(--calm);
 }
 
 .kpi-strip {
@@ -345,6 +350,40 @@ tbody tr.selected { background: var(--panel-2); outline: 1px solid var(--signal)
   padding: 5px 10px; border-radius: var(--radius); font-size: 11px;
 }
 .index-table td, .index-table th { font-size: 11px; }
+
+/* ---- settlement tape (Slice 14) ---- */
+.tape {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.tape-row {
+  display: grid;
+  grid-template-columns: 70px 60px 1fr 90px 90px auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  animation: tape-in 0.2s ease-out;
+}
+@keyframes tape-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tape-row.declined { color: var(--text-mute); text-decoration: line-through; }
+.tape-row.flagged { color: var(--signal); }
+.tape-row .tag {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: var(--radius);
+  border: 1px solid var(--critical);
+  color: var(--critical);
+  justify-self: start;
+}
+.tape-row .tag.flagged { border-color: var(--signal); color: var(--signal); }
 
 /* ---- ring panel (Slice 13, cytoscape-fcose) ---- */
 .ring-graph {

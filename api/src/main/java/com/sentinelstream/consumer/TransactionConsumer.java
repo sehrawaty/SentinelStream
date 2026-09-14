@@ -1,6 +1,5 @@
 package com.sentinelstream.consumer;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sentinelstream.detect.RulesEngine;
 import com.sentinelstream.detect.WindowService;
 import com.sentinelstream.generator.StreamProperties;
@@ -9,6 +8,8 @@ import com.sentinelstream.graph.RingQueryTrigger;
 import com.sentinelstream.persist.AlertWriter;
 import com.sentinelstream.persist.MongoBulkWriter;
 import com.sentinelstream.persist.TransactionMapper;
+import com.sentinelstream.ws.TxnBroadcaster;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -47,7 +47,8 @@ public class TransactionConsumer {
     private final AlertWriter alertWriter;
     private final GraphProjector graphProjector;
     private final RingQueryTrigger ringQueryTrigger;
-    private final ObjectMapper json = new ObjectMapper();
+    private final TxnBroadcaster txnBroadcaster;
+    private final ObjectMapper objectMapper;
     private final AtomicLong processedTotal = new AtomicLong(0);
     private final AtomicLong alertsTotal = new AtomicLong(0);
 
@@ -55,7 +56,8 @@ public class TransactionConsumer {
                                 RedisKeysProperties keysProps, MongoBulkWriter bulkWriter,
                                 TransactionMapper mapper, WindowService windows,
                                 RulesEngine rulesEngine, AlertWriter alertWriter,
-                                GraphProjector graphProjector, RingQueryTrigger ringQueryTrigger) {
+                                GraphProjector graphProjector, RingQueryTrigger ringQueryTrigger,
+                                TxnBroadcaster txnBroadcaster, ObjectMapper objectMapper) {
         this.redis = redis;
         this.streamProps = streamProps;
         this.keysProps = keysProps;
@@ -66,6 +68,8 @@ public class TransactionConsumer {
         this.alertWriter = alertWriter;
         this.graphProjector = graphProjector;
         this.ringQueryTrigger = ringQueryTrigger;
+        this.txnBroadcaster = txnBroadcaster;
+        this.objectMapper = objectMapper;
     }
 
     public void process(MapRecord<String, String, String> record) {
@@ -115,10 +119,10 @@ public class TransactionConsumer {
             bulkWriter.enqueue(txnDoc);
 
             // 6. PERSIST ALERT (sync) — only when at least one rule fired.
-            String alertId = null;
+            Document alertDoc = null;
             if (eval != null && eval.score() > 0) {
-                alertId = alertWriter.write(txnId, cardId, ts, eval);
-                if (alertId != null) {
+                alertDoc = alertWriter.write(txnId, cardId, ts, eval);
+                if (alertDoc != null) {
                     alertsTotal.incrementAndGet();
                 }
             }
@@ -135,10 +139,14 @@ public class TransactionConsumer {
                 ringQueryTrigger.maybeTrigger(cardId);
             }
 
-            // 9. PUBLISH — alerts:live now; /topic/txn sampling is Slice 14 (needs STOMP infra).
-            if (alertId != null) {
-                publishAlert(alertId, txnId, cardId, ts, eval);
+            // 9. PUBLISH — alerts:live (Redis, relayed onto /topic/alerts by
+            //    RedisStompBridge) always when an alert fired; /topic/txn
+            //    sampled directly (§6, §8 D-05) regardless of alert status.
+            String alertId = alertDoc == null ? null : alertDoc.getString("alertId");
+            if (alertDoc != null) {
+                publishAlert(alertDoc);
             }
+            txnBroadcaster.maybePublish(v, alertId != null, blocked);
 
             log.debug("txn {} card={} amount={}{}{}", txnId, cardId, v.get("amount"),
                 blocked ? " [BLOCKED — declined at step 1]" : "",
@@ -163,17 +171,21 @@ public class TransactionConsumer {
         redis.opsForStream().acknowledge(streamProps.getConsumerGroup(), record);
     }
 
-    /** CLAUDE.md §4.1 alerts:live -- PUBLISH the alert JSON; a later slice bridges this to STOMP. */
-    private void publishAlert(String alertId, String txnId, String cardId, long ts, RulesEngine.Evaluation eval) {
+    /**
+     * CLAUDE.md §4.1 alerts:live -- PUBLISH the full alert document (§6: "full
+     * alert document, unsampled"), relayed onto /topic/alerts by
+     * {@link com.sentinelstream.ws.RedisStompBridge}. Serialised with the
+     * app's own Spring-managed Jackson ObjectMapper -- NOT Document.toJson()
+     * (BSON's extended-JSON, which wraps dates as {"$date": "..."} and would
+     * need unwrapping the REST API doesn't require) -- specifically so a live
+     * alert arrives shaped identically to GET /api/alerts/{alertId}'s
+     * response: same Document type through the same Spring codec produces
+     * the same plain-ISO-string dates either way.
+     */
+    private void publishAlert(Document alertDoc) {
+        String alertId = alertDoc.getString("alertId");
         try {
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("alertId", alertId);
-            payload.put("txnId", txnId);
-            payload.put("cardId", cardId);
-            payload.put("ts", ts);
-            payload.put("severity", eval.severity());
-            payload.put("score", eval.score());
-            redis.convertAndSend(ALERTS_CHANNEL, json.writeValueAsString(payload));
+            redis.convertAndSend(ALERTS_CHANNEL, objectMapper.writeValueAsString(alertDoc));
         } catch (Exception e) {
             // Publishing is best-effort -- the alert is already durably persisted (step 6);
             // a missed pub/sub notification does not lose data, only a live-UI nudge.
