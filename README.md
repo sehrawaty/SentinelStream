@@ -167,6 +167,23 @@ same thing live for whatever filter is selected.
 - `docs/presentation/` holds the material for a slide deck: the content
   (`SentinelStream_PPT_content.md`), six diagrams, thirteen screenshots of the
   running system, and a prompt for generating the deck (`PPT_prompt.md`).
+- `docs/report/` holds the final project report, in Word and PDF.
+
+## Team and contributions
+
+Batch ID NS14, team SentinelStream. BCSE406L NoSQL Databases, Fall Semester
+2026–2027, under the guidance of Dr. D. Vivek, SCOPE, VIT Vellore.
+
+| Member | Register number | Contribution |
+|---|---|---|
+| Yash Sehrawat | 23BCE0161 | Sole member: requirements, system design, data models for all three stores, API, stream consumer and detectors, dashboard, testing, documentation |
+
+## Configuration
+
+No configuration is needed for a local run. `.env.example` lists the environment
+variables the API reads and their local defaults, and contains no real secrets.
+All services bind to 127.0.0.1, and the Neo4j password used by the scripts is a
+local development default only.
 
 ## Troubleshooting
 

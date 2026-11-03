@@ -55,29 +55,29 @@
   },
   "executionStats": {
     "executionSuccess": true,
-    "nReturned": 808,
-    "executionTimeMillis": 5,
-    "totalKeysExamined": 808,
-    "totalDocsExamined": 808,
+    "nReturned": 826,
+    "executionTimeMillis": 1,
+    "totalKeysExamined": 826,
+    "totalDocsExamined": 826,
     "executionStages": {
       "stage": "FETCH",
-      "nReturned": 808,
-      "executionTimeMillisEstimate": 3,
-      "works": 809,
-      "advanced": 808,
+      "nReturned": 826,
+      "executionTimeMillisEstimate": 0,
+      "works": 827,
+      "advanced": 826,
       "needTime": 0,
       "needYield": 0,
       "saveState": 0,
       "restoreState": 0,
       "isEOF": 1,
-      "docsExamined": 808,
+      "docsExamined": 826,
       "alreadyHasObj": 0,
       "inputStage": {
         "stage": "IXSCAN",
-        "nReturned": 808,
+        "nReturned": 826,
         "executionTimeMillisEstimate": 0,
-        "works": 809,
-        "advanced": 808,
+        "works": 827,
+        "advanced": 826,
         "needTime": 0,
         "needYield": 0,
         "saveState": 0,
@@ -106,7 +106,7 @@
             "[true, true]"
           ]
         },
-        "keysExamined": 808,
+        "keysExamined": 826,
         "seeks": 1,
         "dupsTested": 0,
         "dupsDropped": 0
@@ -141,7 +141,7 @@
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7696201027833299029"
+      "$timestamp": "7703890522531692639"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -149,6 +149,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7696201027833299029"
+    "$timestamp": "7703890522531692639"
   }
 }

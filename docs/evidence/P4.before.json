@@ -20,7 +20,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-10-13T17:10:39.703Z"
+                    "$const": "2026-11-03T10:29:49.774Z"
                   }
                 ]
               }
@@ -34,7 +34,7 @@
         },
         {
           "ts": {
-            "$_internalExprLt": "2026-10-13T17:10:39.703Z"
+            "$_internalExprLt": "2026-11-03T10:29:49.774Z"
           }
         }
       ]
@@ -67,7 +67,7 @@
                     "$lt": [
                       "$ts",
                       {
-                        "$const": "2026-10-13T17:10:39.703Z"
+                        "$const": "2026-11-03T10:29:49.774Z"
                       }
                     ]
                   }
@@ -98,7 +98,7 @@
           "direction": "forward",
           "indexBounds": {
             "ts": [
-              "(new Date(1791911439703), MinKey]"
+              "(new Date(1793701789774), MinKey]"
             ]
           }
         }
@@ -109,19 +109,19 @@
   "executionStats": {
     "executionSuccess": true,
     "nReturned": 10,
-    "executionTimeMillis": 67,
-    "totalKeysExamined": 41242,
-    "totalDocsExamined": 41242,
+    "executionTimeMillis": 62,
+    "totalKeysExamined": 39135,
+    "totalDocsExamined": 39135,
     "executionStages": {
       "stage": "LIMIT",
       "nReturned": 10,
-      "executionTimeMillisEstimate": 6,
-      "works": 41243,
+      "executionTimeMillisEstimate": 5,
+      "works": 39136,
       "advanced": 10,
-      "needTime": 41232,
+      "needTime": 39125,
       "needYield": 0,
-      "saveState": 41,
-      "restoreState": 41,
+      "saveState": 39,
+      "restoreState": 39,
       "isEOF": 1,
       "limitAmount": 10,
       "inputStage": {
@@ -143,7 +143,7 @@
                     "$lt": [
                       "$ts",
                       {
-                        "$const": "2026-10-13T17:10:39.703Z"
+                        "$const": "2026-11-03T10:29:49.774Z"
                       }
                     ]
                   }
@@ -158,26 +158,26 @@
           ]
         },
         "nReturned": 10,
-        "executionTimeMillisEstimate": 6,
-        "works": 41242,
+        "executionTimeMillisEstimate": 5,
+        "works": 39135,
         "advanced": 10,
-        "needTime": 41232,
+        "needTime": 39125,
         "needYield": 0,
-        "saveState": 41,
-        "restoreState": 41,
+        "saveState": 39,
+        "restoreState": 39,
         "isEOF": 0,
-        "docsExamined": 41242,
+        "docsExamined": 39135,
         "alreadyHasObj": 0,
         "inputStage": {
           "stage": "IXSCAN",
-          "nReturned": 41242,
-          "executionTimeMillisEstimate": 3,
-          "works": 41242,
-          "advanced": 41242,
+          "nReturned": 39135,
+          "executionTimeMillisEstimate": 2,
+          "works": 39135,
+          "advanced": 39135,
           "needTime": 0,
           "needYield": 0,
-          "saveState": 41,
-          "restoreState": 41,
+          "saveState": 39,
+          "restoreState": 39,
           "isEOF": 0,
           "keyPattern": {
             "ts": -1
@@ -194,10 +194,10 @@
           "direction": "forward",
           "indexBounds": {
             "ts": [
-              "(new Date(1791911439703), MinKey]"
+              "(new Date(1793701789774), MinKey]"
             ]
           },
-          "keysExamined": 41242,
+          "keysExamined": 39135,
           "seeks": 1,
           "dupsTested": 0,
           "dupsDropped": 0
@@ -221,7 +221,7 @@
               {
                 "$lt": [
                   "$ts",
-                  "2026-10-13T17:10:39.703Z"
+                  "2026-11-03T10:29:49.774Z"
                 ]
               }
             ]
@@ -260,7 +260,7 @@
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7696201027833299030"
+      "$timestamp": "7703890522531692640"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -268,6 +268,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7696201027833299030"
+    "$timestamp": "7703890522531692640"
   }
 }

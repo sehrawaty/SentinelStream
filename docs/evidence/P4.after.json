@@ -20,7 +20,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-10-13T17:10:40.191Z"
+                    "$const": "2026-11-03T10:29:50.521Z"
                   }
                 ]
               }
@@ -34,7 +34,7 @@
         },
         {
           "ts": {
-            "$_internalExprLt": "2026-10-13T17:10:40.191Z"
+            "$_internalExprLt": "2026-11-03T10:29:50.521Z"
           }
         }
       ]
@@ -65,7 +65,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-10-13T17:10:40.191Z"
+                    "$const": "2026-11-03T10:29:50.521Z"
                   }
                 ]
               }
@@ -94,7 +94,7 @@
               "[\"C-0417\", \"C-0417\"]"
             ],
             "ts": [
-              "(new Date(1791911440191), MinKey]"
+              "(new Date(1793701790521), MinKey]"
             ]
           }
         }
@@ -123,7 +123,7 @@
                       "$lt": [
                         "$ts",
                         {
-                          "$const": "2026-10-13T17:10:40.191Z"
+                          "$const": "2026-11-03T10:29:50.521Z"
                         }
                       ]
                     }
@@ -154,7 +154,7 @@
             "direction": "forward",
             "indexBounds": {
               "ts": [
-                "(new Date(1791911440191), MinKey]"
+                "(new Date(1793701790521), MinKey]"
               ]
             }
           }
@@ -165,7 +165,7 @@
   "executionStats": {
     "executionSuccess": true,
     "nReturned": 10,
-    "executionTimeMillis": 1,
+    "executionTimeMillis": 0,
     "totalKeysExamined": 10,
     "totalDocsExamined": 10,
     "executionStages": {
@@ -197,7 +197,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-10-13T17:10:40.191Z"
+                    "$const": "2026-11-03T10:29:50.521Z"
                   }
                 ]
               }
@@ -246,7 +246,7 @@
               "[\"C-0417\", \"C-0417\"]"
             ],
             "ts": [
-              "(new Date(1791911440191), MinKey]"
+              "(new Date(1793701790521), MinKey]"
             ]
           },
           "keysExamined": 10,
@@ -273,7 +273,7 @@
               {
                 "$lt": [
                   "$ts",
-                  "2026-10-13T17:10:40.191Z"
+                  "2026-11-03T10:29:50.521Z"
                 ]
               }
             ]
@@ -312,7 +312,7 @@
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7696201032128266333"
+      "$timestamp": "7703890526826659918"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -320,6 +320,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7696201032128266333"
+    "$timestamp": "7703890526826659918"
   }
 }

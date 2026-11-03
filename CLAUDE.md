@@ -138,6 +138,7 @@ sentinelstream/
     Teacher_demo.md           presenter's guide and viva answers
     presentation/             deck source: content .md, prompt, 6 diagrams, 13 screenshots
       source/                 diagram HTML, rendered to the fig-*.png files
+    report/                   final project report (.docx, .pdf)
   api/                        Spring Boot
     src/main/java/.../
       generator/  consumer/  detect/  persist/  graph/  triage/  stats/  ws/  control/  admin/

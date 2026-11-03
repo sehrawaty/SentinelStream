@@ -34,27 +34,27 @@
   },
   "executionStats": {
     "executionSuccess": true,
-    "nReturned": 203,
+    "nReturned": 172,
     "executionTimeMillis": 1,
     "totalKeysExamined": 0,
-    "totalDocsExamined": 2057,
+    "totalDocsExamined": 1811,
     "executionStages": {
       "stage": "SORT",
-      "nReturned": 203,
+      "nReturned": 172,
       "executionTimeMillisEstimate": 0,
-      "works": 2262,
-      "advanced": 203,
-      "needTime": 2058,
+      "works": 1985,
+      "advanced": 172,
+      "needTime": 1812,
       "needYield": 0,
-      "saveState": 2,
-      "restoreState": 2,
+      "saveState": 1,
+      "restoreState": 1,
       "isEOF": 1,
       "sortPattern": {
         "ts": -1
       },
       "memLimit": 104857600,
       "type": "simple",
-      "totalDataSizeSorted": 146405,
+      "totalDataSizeSorted": 119078,
       "usedDisk": false,
       "spills": 0,
       "spilledDataStorageSize": 0,
@@ -65,17 +65,17 @@
             "$eq": "HIGH"
           }
         },
-        "nReturned": 203,
+        "nReturned": 172,
         "executionTimeMillisEstimate": 0,
-        "works": 2058,
-        "advanced": 203,
-        "needTime": 1854,
+        "works": 1812,
+        "advanced": 172,
+        "needTime": 1639,
         "needYield": 0,
-        "saveState": 2,
-        "restoreState": 2,
+        "saveState": 1,
+        "restoreState": 1,
         "isEOF": 1,
         "direction": "forward",
-        "docsExamined": 2057
+        "docsExamined": 1811
       }
     }
   },
@@ -109,7 +109,7 @@
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7696201032128266334"
+      "$timestamp": "7703890526826659919"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -117,6 +117,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7696201032128266334"
+    "$timestamp": "7703890526826659919"
   }
 }

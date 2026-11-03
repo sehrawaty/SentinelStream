@@ -152,7 +152,7 @@
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7696201023538331748"
+      "$timestamp": "7703890518236725335"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -160,6 +160,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7696201023538331748"
+    "$timestamp": "7703890518236725335"
   }
 }

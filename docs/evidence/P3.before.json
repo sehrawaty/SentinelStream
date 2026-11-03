@@ -44,10 +44,10 @@
   },
   "executionStats": {
     "executionSuccess": true,
-    "nReturned": 808,
-    "executionTimeMillis": 98,
+    "nReturned": 826,
+    "executionTimeMillis": 136,
     "totalKeysExamined": 0,
-    "totalDocsExamined": 159424,
+    "totalDocsExamined": 244404,
     "executionStages": {
       "stage": "COLLSCAN",
       "filter": {
@@ -64,17 +64,17 @@
           }
         ]
       },
-      "nReturned": 808,
-      "executionTimeMillisEstimate": 20,
-      "works": 159425,
-      "advanced": 808,
-      "needTime": 158616,
+      "nReturned": 826,
+      "executionTimeMillisEstimate": 16,
+      "works": 244405,
+      "advanced": 826,
+      "needTime": 243578,
       "needYield": 0,
-      "saveState": 159,
-      "restoreState": 159,
+      "saveState": 244,
+      "restoreState": 244,
       "isEOF": 1,
       "direction": "forward",
-      "docsExamined": 159424
+      "docsExamined": 244404
     }
   },
   "command": {
@@ -105,7 +105,7 @@
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7696201023538331828"
+      "$timestamp": "7703890518236725411"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -113,6 +113,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7696201023538331827"
+    "$timestamp": "7703890518236725411"
   }
 }
