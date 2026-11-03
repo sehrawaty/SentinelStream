@@ -20,7 +20,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-09-14T10:32:12.445Z"
+                    "$const": "2026-10-13T17:10:39.703Z"
                   }
                 ]
               }
@@ -34,14 +34,13 @@
         },
         {
           "ts": {
-            "$_internalExprLt": "2026-09-14T10:32:12.445Z"
+            "$_internalExprLt": "2026-10-13T17:10:39.703Z"
           }
         }
       ]
     },
-    "queryHash": "DD49D336",
-    "planCacheKey": "7C037007",
-    "optimizationTimeMillis": 0,
+    "queryHash": "085BC285",
+    "planCacheKey": "B483FEFE",
     "optimizedPipeline": true,
     "maxIndexedOrSolutionsReached": false,
     "maxIndexedAndSolutionsReached": false,
@@ -68,7 +67,7 @@
                     "$lt": [
                       "$ts",
                       {
-                        "$const": "2026-09-14T10:32:12.445Z"
+                        "$const": "2026-10-13T17:10:39.703Z"
                       }
                     ]
                   }
@@ -99,7 +98,7 @@
           "direction": "forward",
           "indexBounds": {
             "ts": [
-              "(new Date(1789381932445), MinKey]"
+              "(new Date(1791911439703), MinKey]"
             ]
           }
         }
@@ -110,19 +109,19 @@
   "executionStats": {
     "executionSuccess": true,
     "nReturned": 10,
-    "executionTimeMillis": 23,
-    "totalKeysExamined": 30376,
-    "totalDocsExamined": 30376,
+    "executionTimeMillis": 67,
+    "totalKeysExamined": 41242,
+    "totalDocsExamined": 41242,
     "executionStages": {
       "stage": "LIMIT",
       "nReturned": 10,
-      "executionTimeMillisEstimate": 1,
-      "works": 30377,
+      "executionTimeMillisEstimate": 6,
+      "works": 41243,
       "advanced": 10,
-      "needTime": 30366,
+      "needTime": 41232,
       "needYield": 0,
-      "saveState": 30,
-      "restoreState": 30,
+      "saveState": 41,
+      "restoreState": 41,
       "isEOF": 1,
       "limitAmount": 10,
       "inputStage": {
@@ -144,7 +143,7 @@
                     "$lt": [
                       "$ts",
                       {
-                        "$const": "2026-09-14T10:32:12.445Z"
+                        "$const": "2026-10-13T17:10:39.703Z"
                       }
                     ]
                   }
@@ -159,26 +158,26 @@
           ]
         },
         "nReturned": 10,
-        "executionTimeMillisEstimate": 1,
-        "works": 30376,
+        "executionTimeMillisEstimate": 6,
+        "works": 41242,
         "advanced": 10,
-        "needTime": 30366,
+        "needTime": 41232,
         "needYield": 0,
-        "saveState": 30,
-        "restoreState": 30,
+        "saveState": 41,
+        "restoreState": 41,
         "isEOF": 0,
-        "docsExamined": 30376,
+        "docsExamined": 41242,
         "alreadyHasObj": 0,
         "inputStage": {
           "stage": "IXSCAN",
-          "nReturned": 30376,
-          "executionTimeMillisEstimate": 1,
-          "works": 30376,
-          "advanced": 30376,
+          "nReturned": 41242,
+          "executionTimeMillisEstimate": 3,
+          "works": 41242,
+          "advanced": 41242,
           "needTime": 0,
           "needYield": 0,
-          "saveState": 30,
-          "restoreState": 30,
+          "saveState": 41,
+          "restoreState": 41,
           "isEOF": 0,
           "keyPattern": {
             "ts": -1
@@ -195,10 +194,10 @@
           "direction": "forward",
           "indexBounds": {
             "ts": [
-              "(new Date(1789381932445), MinKey]"
+              "(new Date(1791911439703), MinKey]"
             ]
           },
-          "keysExamined": 30376,
+          "keysExamined": 41242,
           "seeks": 1,
           "dupsTested": 0,
           "dupsDropped": 0
@@ -222,7 +221,7 @@
               {
                 "$lt": [
                   "$ts",
-                  "2026-09-14T10:32:12.445Z"
+                  "2026-10-13T17:10:39.703Z"
                 ]
               }
             ]
@@ -242,10 +241,10 @@
     "$db": "sentinel"
   },
   "serverInfo": {
-    "host": "0f77bcd46056",
+    "host": "Yash-Victus",
     "port": 27017,
-    "version": "7.0.41",
-    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+    "version": "7.0.14",
+    "gitVersion": "ce59cfc6a3c5e5c067dca0d30697edd68d4f5188"
   },
   "serverParameters": {
     "internalQueryFacetBufferSizeBytes": 104857600,
@@ -256,12 +255,12 @@
     "internalQueryProhibitBlockingMergeOnMongoS": 0,
     "internalQueryMaxAddToSetBytes": 104857600,
     "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
-    "internalQueryFrameworkControl": "forceClassicEngine"
+    "internalQueryFrameworkControl": "trySbeRestricted"
   },
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7685336877993295961"
+      "$timestamp": "7696201027833299030"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -269,6 +268,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7685336877993295961"
+    "$timestamp": "7696201027833299030"
   }
 }

@@ -17,9 +17,8 @@
         }
       ]
     },
-    "queryHash": "B7C555F4",
-    "planCacheKey": "6ABE1FC8",
-    "optimizationTimeMillis": 0,
+    "queryHash": "8A6F6618",
+    "planCacheKey": "5A53D487",
     "maxIndexedOrSolutionsReached": false,
     "maxIndexedAndSolutionsReached": false,
     "maxScansToExplodeReached": false,
@@ -61,10 +60,10 @@
   },
   "executionStats": {
     "executionSuccess": true,
-    "nReturned": 10,
+    "nReturned": 86,
     "executionTimeMillis": 0,
-    "totalKeysExamined": 10,
-    "totalDocsExamined": 10,
+    "totalKeysExamined": 203,
+    "totalDocsExamined": 203,
     "executionStages": {
       "stage": "FETCH",
       "filter": {
@@ -72,23 +71,23 @@
           "$eq": "NEW"
         }
       },
-      "nReturned": 10,
+      "nReturned": 86,
       "executionTimeMillisEstimate": 0,
-      "works": 11,
-      "advanced": 10,
-      "needTime": 0,
+      "works": 204,
+      "advanced": 86,
+      "needTime": 117,
       "needYield": 0,
       "saveState": 0,
       "restoreState": 0,
       "isEOF": 1,
-      "docsExamined": 10,
+      "docsExamined": 203,
       "alreadyHasObj": 0,
       "inputStage": {
         "stage": "IXSCAN",
-        "nReturned": 10,
+        "nReturned": 203,
         "executionTimeMillisEstimate": 0,
-        "works": 11,
-        "advanced": 10,
+        "works": 204,
+        "advanced": 203,
         "needTime": 0,
         "needYield": 0,
         "saveState": 0,
@@ -117,7 +116,7 @@
             "[MaxKey, MinKey]"
           ]
         },
-        "keysExamined": 10,
+        "keysExamined": 203,
         "seeks": 1,
         "dupsTested": 0,
         "dupsDropped": 0
@@ -136,10 +135,10 @@
     "$db": "sentinel"
   },
   "serverInfo": {
-    "host": "0f77bcd46056",
+    "host": "Yash-Victus",
     "port": 27017,
-    "version": "7.0.41",
-    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+    "version": "7.0.14",
+    "gitVersion": "ce59cfc6a3c5e5c067dca0d30697edd68d4f5188"
   },
   "serverParameters": {
     "internalQueryFacetBufferSizeBytes": 104857600,
@@ -150,12 +149,12 @@
     "internalQueryProhibitBlockingMergeOnMongoS": 0,
     "internalQueryMaxAddToSetBytes": 104857600,
     "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
-    "internalQueryFrameworkControl": "forceClassicEngine"
+    "internalQueryFrameworkControl": "trySbeRestricted"
   },
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7685336873698328747"
+      "$timestamp": "7696201023538331649"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -163,6 +162,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7685336873698328747"
+    "$timestamp": "7696201023538331649"
   }
 }

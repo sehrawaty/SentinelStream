@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Alert lifecycle and block-card flow</title><link rel="stylesheet" href="diagram.css">
+<style>
+  .state { position: absolute; display: grid; place-items: center; height: 58px; padding: 0 20px; border: 1.8px solid #16181d; border-radius: 29px; background: #fff; font-size: 16.5px; font-weight: 600; white-space: nowrap; }
+  .state.end { border-style: dashed; border-color: #6f737c; color: #4b4f58; font-weight: 500; }
+  .seq { width: 640px; padding: 13px 16px; }
+  .seq .n { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 10px; border-radius: 50%; background: #16181d; color: #fff; font-size: 14.5px; font-weight: 600; vertical-align: middle; }
+  .seq h4 { display: inline; font-size: 17px; vertical-align: middle; }
+  .seq .tag { float: right; margin-top: 3px; }
+  .seq p { margin: 8px 0 0 38px; font-size: 14.5px; }
+  .seq .mono { font-size: 13.5px; }
+  .divider { position: absolute; left: 800px; top: 60px; width: 1px; height: 760px; background: #e6e5df; }
+</style></head>
+<body>
+
+<div class="heading" style="left:40px;top:40px">Alert status lifecycle<small>Enforced on the server. An illegal move is rejected with 409 Conflict.</small></div>
+
+<div class="state" style="left:50px;top:270px;width:110px">New</div>
+<div class="state" style="left:270px;top:270px;width:170px">Investigating</div>
+<div class="state" style="left:560px;top:160px;width:190px">Confirmed fraud</div>
+<div class="state" style="left:560px;top:380px;width:190px">False positive</div>
+<div class="state end" style="left:230px;top:560px;width:250px">alerts_archive, then deleted</div>
+
+<svg class="wires" viewBox="0 0 1600 900">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+    <path d="M0,0 L10,5 L0,10 z" style="fill:#4b4f58;stroke:none"/></marker></defs>
+  <path d="M160,299 H268" marker-end="url(#a)"/>
+  <path d="M440,285 C500,285 500,189 558,189" marker-end="url(#a)"/>
+  <path d="M440,313 C500,313 500,409 558,409" marker-end="url(#a)"/>
+  <path d="M600,160 C560,90 400,110 370,268" marker-end="url(#a)" style="stroke-dasharray:6 5"/>
+  <path d="M600,438 C560,500 400,480 372,330" marker-end="url(#a)" style="stroke-dasharray:6 5"/>
+  <path d="M105,328 C105,470 190,589 228,589" marker-end="url(#a)"/>
+  <path d="M655,438 C655,560 560,589 482,589" marker-end="url(#a)"/>
+
+  <!-- right-hand sequence connectors -->
+  <path d="M1180,206 V226" marker-end="url(#a)"/><path d="M1180,356 V376" marker-end="url(#a)"/>
+  <path d="M1180,476 V496" marker-end="url(#a)"/><path d="M1180,596 V616" marker-end="url(#a)"/>
+</svg>
+<span class="lbl" style="left:214px;top:274px">start</span>
+<span class="lbl" style="left:500px;top:218px">resolve</span>
+<span class="lbl" style="left:500px;top:358px">resolve</span>
+<span class="lbl" style="left:452px;top:112px">reopen</span>
+<span class="lbl" style="left:452px;top:470px">reopen</span>
+<span class="lbl" style="left:128px;top:452px">dismiss</span>
+<span class="lbl" style="left:640px;top:520px">dismiss</span>
+
+<div class="note" style="left:40px;top:680px;width:720px">
+  Resolving needs a written resolution. Confirmed fraud cannot be dismissed.<br>
+  Every change appends <span class="mono">{from, to, by, at}</span> to <span class="mono">statusHistory</span> with <span class="mono">$push</span>.<br>
+  Dismissal copies the alert to the archive (kept 7 days), then runs a real <span class="mono">deleteOne</span>.
+</div>
+
+<div class="divider"></div>
+
+<div class="heading" style="left:860px;top:40px">Blocking a card: one action, three stores<small>MongoDB is the record of truth. Redis is the copy the hot path reads.</small></div>
+
+<div class="box app seq" style="left:860px;top:130px;height:76px"><span class="n">1</span><h4>Analyst chooses Block card</h4><span class="tag app">Dashboard</span>
+  <p class="mono">POST /api/cards/{cardId}/block</p></div>
+<div class="box mongo seq" style="left:860px;top:228px;height:128px"><span class="n">2</span><h4>One multi-document transaction</h4><span class="tag mongo">MongoDB</span>
+  <p>Upsert into <span class="mono">blocked_cards</span>, and set <span class="mono">cardBlocked</span> on that card's alerts. Both commit, or neither does.</p></div>
+<div class="box redis seq" style="left:860px;top:378px;height:98px"><span class="n">3</span><h4>Mirror to the hot path</h4><span class="tag redis">Redis</span>
+  <p class="mono">SADD blocklist:cards {cardId}</p><p style="margin-top:2px">Only after the transaction has committed.</p></div>
+<div class="box neo seq" style="left:860px;top:498px;height:98px"><span class="n">4</span><h4>Mark the node</h4><span class="tag neo">Neo4j</span>
+  <p class="mono">SET c.blocked = true</p><p style="margin-top:2px">Best effort. The ring graph then draws the card in red.</p></div>
+<div class="box redis seq" style="left:860px;top:618px;height:128px"><span class="n">5</span><h4>The card's next payment is declined</h4><span class="tag redis">Redis</span>
+  <p>Consumer step 1 runs <span class="mono">SISMEMBER blocklist:cards</span>, marks the transaction declined and skips the detectors. The live tape shows it struck through.</p></div>
+
+<div class="note" style="left:860px;top:772px;width:640px">A write to MongoDB changes the live stream within one transaction interval, through Redis.</div>
+</body>
+</html>

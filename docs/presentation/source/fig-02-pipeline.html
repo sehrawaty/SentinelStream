@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Consumer pipeline</title><link rel="stylesheet" href="diagram.css">
+<style>
+  .step { width: 288px; height: 316px; padding: 18px 18px; }
+  .step .n { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #16181d; color: #fff; font-size: 19px; font-weight: 600; }
+  .step .tag { float: right; margin-top: 7px; font-size: 13.5px; }
+  .step h4 { margin-top: 16px; font-size: 23px; }
+  .step .mono { display: block; margin-top: 12px; padding: 9px 11px; border-radius: 6px; background: rgba(255,255,255,0.75); border: 1px solid rgba(22,24,29,0.12); font-size: 14.5px; line-height: 1.45; }
+  .step p { margin-top: 14px; font-size: 17.5px; line-height: 1.36; }
+</style></head>
+<body>
+
+<div class="box redis step" style="left:40px;top:60px"><span class="n">1</span><span class="tag redis">Redis</span>
+  <h4>Blocklist check</h4><span class="mono">SISMEMBER blocklist:cards</span>
+  <p>A blocked card is marked declined and skips the detectors.</p></div>
+<div class="box redis step" style="left:348px;top:60px"><span class="n">2</span><span class="tag redis">Redis</span>
+  <h4>Idempotency guard</h4><span class="mono" style="font-size:13.2px;white-space:nowrap">SET idem:txn:{id} 1 NX EX 900</span>
+  <p>A repeated delivery is acknowledged and dropped.</p></div>
+<div class="box redis step" style="left:656px;top:60px"><span class="n">3</span><span class="tag redis">Redis</span>
+  <h4>Update windows</h4><span class="mono">ZREMRANGEBYSCORE · ZADD<br>GEOADD · EXPIRE</span>
+  <p>One pipelined round trip trims and updates five windows.</p></div>
+<div class="box redis step" style="left:964px;top:60px"><span class="n">4</span><span class="tag redis">Redis</span>
+  <h4>Run four detectors</h4><span class="mono">ZCARD · ZREVRANGE · GEODIST</span>
+  <p>The rules read the windows and produce a score from 0 to 100.</p></div>
+<div class="box mongo step" style="left:1272px;top:60px"><span class="n">5</span><span class="tag mongo">MongoDB</span>
+  <h4>Save transaction</h4><span class="mono">bulkWrite, upsert on txnId</span>
+  <p>Buffered: 200 documents or 500 ms. Never one insert per transaction.</p></div>
+
+<div class="box mongo step" style="left:40px;top:436px"><span class="n">6</span><span class="tag mongo">MongoDB</span>
+  <h4>Save alert</h4><span class="mono">insertOne</span>
+  <p>Only when the score is above 0. Immediate, so the alert can be read the moment it is announced.</p></div>
+<div class="box neo step" style="left:348px;top:436px"><span class="n">7</span><span class="tag neo">Neo4j</span>
+  <h4>Queue graph edges</h4><span class="mono">UNWIND $batch … MERGE</span>
+  <p>Buffered: 100 edges or 500 ms. MERGE makes a replay harmless.</p></div>
+<div class="box neo step" style="left:656px;top:436px"><span class="n">8</span><span class="tag neo">Neo4j</span>
+  <h4>Ring query</h4><span class="mono">MATCH … *1..6</span>
+  <p>Only if fan-out fired. Background thread, 300 s cooldown per card.</p></div>
+<div class="box redis step" style="left:964px;top:436px"><span class="n">9</span><span class="tag redis">Redis</span>
+  <h4>Publish</h4><span class="mono">PUBLISH alerts:live</span>
+  <p>Relayed to the dashboard over a WebSocket.</p></div>
+<div class="box redis step" style="left:1272px;top:436px"><span class="n">10</span><span class="tag redis">Redis</span>
+  <h4>Acknowledge</h4><span class="mono">XACK</span>
+  <p>Always last. A crash before this point means redelivery, not loss.</p></div>
+
+<svg class="wires" viewBox="0 0 1600 900">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <path d="M0,0 L10,5 L0,10 z" style="fill:#4b4f58;stroke:none"/></marker></defs>
+  <path d="M328,218 H346" marker-end="url(#a)"/><path d="M636,218 H654" marker-end="url(#a)"/>
+  <path d="M944,218 H962" marker-end="url(#a)"/><path d="M1252,218 H1270" marker-end="url(#a)"/>
+  <path d="M1416,376 V406 H184 V434" marker-end="url(#a)"/>
+  <path d="M328,594 H346" marker-end="url(#a)"/><path d="M636,594 H654" marker-end="url(#a)"/>
+  <path d="M944,594 H962" marker-end="url(#a)"/><path d="M1252,594 H1270" marker-end="url(#a)"/>
+</svg>
+
+<div class="note" style="left:40px;top:784px;width:1520px;font-size:17px">
+  Steps 5, 7 and 8 never wait on disk or network: they hand work to a queue or a background thread. Step 6 is the one deliberate exception.
+</div>
+</body>
+</html>

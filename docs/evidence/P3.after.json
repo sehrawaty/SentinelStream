@@ -17,9 +17,8 @@
         }
       ]
     },
-    "queryHash": "7A3D735A",
-    "planCacheKey": "32F6CB3B",
-    "optimizationTimeMillis": 0,
+    "queryHash": "BDCF6900",
+    "planCacheKey": "BDDDE557",
     "maxIndexedOrSolutionsReached": false,
     "maxIndexedAndSolutionsReached": false,
     "maxScansToExplodeReached": false,
@@ -56,33 +55,33 @@
   },
   "executionStats": {
     "executionSuccess": true,
-    "nReturned": 3300,
-    "executionTimeMillis": 4,
-    "totalKeysExamined": 3300,
-    "totalDocsExamined": 3300,
+    "nReturned": 808,
+    "executionTimeMillis": 5,
+    "totalKeysExamined": 808,
+    "totalDocsExamined": 808,
     "executionStages": {
       "stage": "FETCH",
-      "nReturned": 3300,
-      "executionTimeMillisEstimate": 2,
-      "works": 3301,
-      "advanced": 3300,
+      "nReturned": 808,
+      "executionTimeMillisEstimate": 3,
+      "works": 809,
+      "advanced": 808,
       "needTime": 0,
       "needYield": 0,
-      "saveState": 3,
-      "restoreState": 3,
+      "saveState": 0,
+      "restoreState": 0,
       "isEOF": 1,
-      "docsExamined": 3300,
+      "docsExamined": 808,
       "alreadyHasObj": 0,
       "inputStage": {
         "stage": "IXSCAN",
-        "nReturned": 3300,
-        "executionTimeMillisEstimate": 2,
-        "works": 3301,
-        "advanced": 3300,
+        "nReturned": 808,
+        "executionTimeMillisEstimate": 0,
+        "works": 809,
+        "advanced": 808,
         "needTime": 0,
         "needYield": 0,
-        "saveState": 3,
-        "restoreState": 3,
+        "saveState": 0,
+        "restoreState": 0,
         "isEOF": 1,
         "keyPattern": {
           "merchant.category": 1,
@@ -107,7 +106,7 @@
             "[true, true]"
           ]
         },
-        "keysExamined": 3300,
+        "keysExamined": 808,
         "seeks": 1,
         "dupsTested": 0,
         "dupsDropped": 0
@@ -123,10 +122,10 @@
     "$db": "sentinel"
   },
   "serverInfo": {
-    "host": "0f77bcd46056",
+    "host": "Yash-Victus",
     "port": 27017,
-    "version": "7.0.41",
-    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+    "version": "7.0.14",
+    "gitVersion": "ce59cfc6a3c5e5c067dca0d30697edd68d4f5188"
   },
   "serverParameters": {
     "internalQueryFacetBufferSizeBytes": 104857600,
@@ -137,12 +136,12 @@
     "internalQueryProhibitBlockingMergeOnMongoS": 0,
     "internalQueryMaxAddToSetBytes": 104857600,
     "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
-    "internalQueryFrameworkControl": "forceClassicEngine"
+    "internalQueryFrameworkControl": "trySbeRestricted"
   },
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7685336877993295960"
+      "$timestamp": "7696201027833299029"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -150,6 +149,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7685336877993295960"
+    "$timestamp": "7696201027833299029"
   }
 }

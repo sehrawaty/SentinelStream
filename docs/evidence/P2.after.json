@@ -8,9 +8,8 @@
         "$eq": "C-0417"
       }
     },
-    "queryHash": "BE5CD739",
-    "planCacheKey": "FFAC68B8",
-    "optimizationTimeMillis": 0,
+    "queryHash": "790C5ED6",
+    "planCacheKey": "1667EB52",
     "maxIndexedOrSolutionsReached": false,
     "maxIndexedAndSolutionsReached": false,
     "maxScansToExplodeReached": false,
@@ -134,10 +133,10 @@
     "$db": "sentinel"
   },
   "serverInfo": {
-    "host": "0f77bcd46056",
+    "host": "Yash-Victus",
     "port": 27017,
-    "version": "7.0.41",
-    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+    "version": "7.0.14",
+    "gitVersion": "ce59cfc6a3c5e5c067dca0d30697edd68d4f5188"
   },
   "serverParameters": {
     "internalQueryFacetBufferSizeBytes": 104857600,
@@ -148,12 +147,12 @@
     "internalQueryProhibitBlockingMergeOnMongoS": 0,
     "internalQueryMaxAddToSetBytes": 104857600,
     "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
-    "internalQueryFrameworkControl": "forceClassicEngine"
+    "internalQueryFrameworkControl": "trySbeRestricted"
   },
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7685336877993295952"
+      "$timestamp": "7696201023538331748"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -161,6 +160,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7685336877993295952"
+    "$timestamp": "7696201023538331748"
   }
 }

@@ -20,7 +20,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-09-14T10:32:12.706Z"
+                    "$const": "2026-10-13T17:10:40.191Z"
                   }
                 ]
               }
@@ -34,14 +34,13 @@
         },
         {
           "ts": {
-            "$_internalExprLt": "2026-09-14T10:32:12.706Z"
+            "$_internalExprLt": "2026-10-13T17:10:40.191Z"
           }
         }
       ]
     },
-    "queryHash": "DD49D336",
-    "planCacheKey": "AB123801",
-    "optimizationTimeMillis": 0,
+    "queryHash": "085BC285",
+    "planCacheKey": "BB6B42EC",
     "optimizedPipeline": true,
     "maxIndexedOrSolutionsReached": false,
     "maxIndexedAndSolutionsReached": false,
@@ -66,7 +65,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-09-14T10:32:12.706Z"
+                    "$const": "2026-10-13T17:10:40.191Z"
                   }
                 ]
               }
@@ -95,7 +94,7 @@
               "[\"C-0417\", \"C-0417\"]"
             ],
             "ts": [
-              "(new Date(1789381932706), MinKey]"
+              "(new Date(1791911440191), MinKey]"
             ]
           }
         }
@@ -124,7 +123,7 @@
                       "$lt": [
                         "$ts",
                         {
-                          "$const": "2026-09-14T10:32:12.706Z"
+                          "$const": "2026-10-13T17:10:40.191Z"
                         }
                       ]
                     }
@@ -155,7 +154,7 @@
             "direction": "forward",
             "indexBounds": {
               "ts": [
-                "(new Date(1789381932706), MinKey]"
+                "(new Date(1791911440191), MinKey]"
               ]
             }
           }
@@ -166,7 +165,7 @@
   "executionStats": {
     "executionSuccess": true,
     "nReturned": 10,
-    "executionTimeMillis": 0,
+    "executionTimeMillis": 1,
     "totalKeysExamined": 10,
     "totalDocsExamined": 10,
     "executionStages": {
@@ -198,7 +197,7 @@
                 "$lt": [
                   "$ts",
                   {
-                    "$const": "2026-09-14T10:32:12.706Z"
+                    "$const": "2026-10-13T17:10:40.191Z"
                   }
                 ]
               }
@@ -247,7 +246,7 @@
               "[\"C-0417\", \"C-0417\"]"
             ],
             "ts": [
-              "(new Date(1789381932706), MinKey]"
+              "(new Date(1791911440191), MinKey]"
             ]
           },
           "keysExamined": 10,
@@ -274,7 +273,7 @@
               {
                 "$lt": [
                   "$ts",
-                  "2026-09-14T10:32:12.706Z"
+                  "2026-10-13T17:10:40.191Z"
                 ]
               }
             ]
@@ -294,10 +293,10 @@
     "$db": "sentinel"
   },
   "serverInfo": {
-    "host": "0f77bcd46056",
+    "host": "Yash-Victus",
     "port": 27017,
-    "version": "7.0.41",
-    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+    "version": "7.0.14",
+    "gitVersion": "ce59cfc6a3c5e5c067dca0d30697edd68d4f5188"
   },
   "serverParameters": {
     "internalQueryFacetBufferSizeBytes": 104857600,
@@ -308,12 +307,12 @@
     "internalQueryProhibitBlockingMergeOnMongoS": 0,
     "internalQueryMaxAddToSetBytes": 104857600,
     "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
-    "internalQueryFrameworkControl": "forceClassicEngine"
+    "internalQueryFrameworkControl": "trySbeRestricted"
   },
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7685336877993296042"
+      "$timestamp": "7696201032128266333"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -321,6 +320,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7685336877993296042"
+    "$timestamp": "7696201032128266333"
   }
 }

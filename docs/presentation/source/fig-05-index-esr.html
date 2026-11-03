@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Index 10 and the ESR rule</title><link rel="stylesheet" href="diagram.css">
+<style>
+  table.ix { position: absolute; left: 40px; top: 150px; width: 560px; border-collapse: collapse; font-family: Consolas, monospace; font-size: 15px; }
+  table.ix th { padding: 8px 12px; background: #16181d; color: #fff; font-family: 'Segoe UI', sans-serif; font-size: 14px; font-weight: 600; text-align: left; }
+  table.ix td { padding: 6.5px 12px; border-bottom: 1px solid #e6e5df; color: #8b8f97; }
+  table.ix tr.hit td { background: #eef8f1; color: #16181d; font-weight: 600; border-bottom-color: #cfecd9; }
+  table.ix tr.gap td { padding: 2px 12px; color: #c9c8c0; border-bottom: 0; font-size: 13px; }
+  .call { position: absolute; left: 640px; width: 190px; font-size: 14.5px; line-height: 1.35; color: #33363d; }
+  .call b { display: block; color: #176b34; font-size: 15.5px; }
+  .plan { position: absolute; left: 900px; width: 660px; }
+  .plan h4 { margin: 0; font-size: 17.5px; font-weight: 600; }
+  .plan .mono { font-size: 13.5px; color: #4b4f58; }
+  .bar { height: 30px; margin: 8px 0 6px; border-radius: 0 5px 5px 0; }
+  .plan .fig { font-size: 15px; color: #33363d; }
+  .plan .fig b { font-size: 21px; font-weight: 600; color: #16181d; }
+</style></head>
+<body>
+
+<div class="heading" style="left:40px;top:40px">Index #10 &nbsp;<span class="mono" style="font-size:19px">{ status: 1, severity: 1, ts: -1 }</span>
+  <small>Entries are stored sorted by status, then severity, then newest first</small></div>
+
+<table class="ix">
+  <tr><th>status</th><th>severity</th><th>ts (newest first)</th></tr>
+  <tr><td>CONFIRMED_FRAUD</td><td>HIGH</td><td>00:41:07</td></tr>
+  <tr class="gap"><td colspan="3">⋮</td></tr>
+  <tr><td>INVESTIGATING</td><td>MEDIUM</td><td>00:38:52</td></tr>
+  <tr class="gap"><td colspan="3">⋮</td></tr>
+  <tr class="hit"><td>NEW</td><td>HIGH</td><td>00:44:19</td></tr>
+  <tr class="hit"><td>NEW</td><td>HIGH</td><td>00:43:02</td></tr>
+  <tr class="hit"><td>NEW</td><td>HIGH</td><td>00:40:36</td></tr>
+  <tr class="hit"><td>NEW</td><td>HIGH</td><td>00:39:11</td></tr>
+  <tr class="gap"><td colspan="3">⋮</td></tr>
+  <tr><td>NEW</td><td>LOW</td><td>00:44:30</td></tr>
+  <tr><td>NEW</td><td>LOW</td><td>00:44:12</td></tr>
+  <tr class="gap"><td colspan="3">⋮</td></tr>
+  <tr><td>NEW</td><td>MEDIUM</td><td>00:43:48</td></tr>
+  <tr class="gap"><td colspan="3">⋮</td></tr>
+</table>
+
+<div class="call" style="top:316px"><b>Equality</b>status = NEW and severity = HIGH: seek straight to the first matching entry.</div>
+<div class="call" style="top:436px"><b>Sort</b>Inside that block the entries are already newest first. Read 15 and stop.</div>
+<div class="call" style="top:556px"><b>Range</b>Would come last. A leading <span class="mono">ts</span> would force a walk over the whole time range.</div>
+
+<svg class="wires" viewBox="0 0 1600 900">
+  <path d="M606,336 H632" style="stroke:#1f8f4e"/><path d="M606,336 V472" style="stroke:#1f8f4e"/><path d="M606,472 H632" style="stroke:#1f8f4e"/>
+</svg>
+
+<div class="heading" style="left:900px;top:40px">Same 15 rows, three plans<small>explain("executionStats") on the triage queue, 2,002 alerts, sorted by ts</small></div>
+
+<div class="plan" style="top:150px">
+  <h4>No filter</h4><span class="mono">SORT ← COLLSCAN</span>
+  <div class="bar" style="width:660px;background:#d03b3b"></div>
+  <span class="fig"><b>2,002</b> documents examined, then sorted in memory</span>
+</div>
+<div class="plan" style="top:330px">
+  <h4>status = NEW</h4><span class="mono">FETCH ← SORT ← IXSCAN status_1_severity_1_ts_-1</span>
+  <div class="bar" style="width:264px;background:#e0a019"></div>
+  <span class="fig"><b>801</b> index keys examined, then sorted in memory</span>
+</div>
+<div class="plan" style="top:510px">
+  <h4>status = NEW, severity = HIGH</h4><span class="mono">LIMIT ← FETCH ← IXSCAN status_1_severity_1_ts_-1</span>
+  <div class="bar" style="width:6px;background:#1f8f4e"></div>
+  <span class="fig"><b>15</b> index keys, <b>15</b> documents, no sort stage</span>
+</div>
+
+<div class="note" style="left:900px;top:700px;width:660px">
+  With both equality fields fixed, work done equals rows returned: 133 times fewer than the collection scan.
+  The dashboard shows this plan live for whatever filter is selected.
+</div>
+</body>
+</html>

@@ -1,340 +1,183 @@
 # SentinelStream
 
-Real-time card fraud detection over polyglot NoSQL persistence (Redis Streams +
-MongoDB + Neo4j), Spring Boot backend, React dashboard, Docker Compose.
+Real-time card fraud detection over polyglot NoSQL persistence: Redis Streams,
+MongoDB and Neo4j behind a Spring Boot API and a React dashboard. It runs
+natively on Windows, without Docker.
 
-Course project — see `docs/NoSQL_Project.md` for the design spec and
-`CLAUDE.md` for the frozen implementation reference (data models, indexes,
-side-effect ordering, decision log).
+Course project. `docs/NoSQL_Project.md` is the design spec; `CLAUDE.md` is the
+implementation reference (data models, indexes, consumer ordering, decision
+log) and wins where the two disagree.
 
-> This README grows with each build slice (`docs/PLAN.md` Part 6). What
-> follows is current through **Slice 17**.
+## What it does
 
-## Prerequisites
+A generator emits about 150 synthetic card transactions a second onto a Redis
+Stream. A consumer group scores each one against four rules using sliding
+windows held in Redis, writes transactions and alerts to MongoDB, and projects
+cards, devices and IPs into a Neo4j graph. When Redis notices one device behind
+three or more cards, Neo4j resolves the whole fraud ring in a single traversal.
 
-- Docker Desktop (with Compose v2 / `docker compose`)
-- ~4 GB RAM free for the stack (see CLAUDE.md §2 for per-service limits)
+| Store | Job | Why this model |
+|---|---|---|
+| Redis | Ordered ingestion (Streams, consumer group) and per-card sliding windows (ZSet, GEO) | Window reads are O(1) or O(log N); delivery is at-least-once with redelivery |
+| MongoDB | Transactions, alerts with per-rule evidence, triage workflow, aggregations | Each rule's evidence has a different shape; alerts are documents, not rows |
+| Neo4j | Cards linked to the devices and IPs they use | A ring is a variable-depth traversal, not a recursive join |
+
+## Requirements
+
+- Windows 10 or 11, PowerShell 5.1
+- Node.js 20.14 or newer
+- About 2 GB of disk (1.2 GB of tools, the rest data) and 1 GB of free RAM
+- No administrator rights, no Docker
 
 ## Run it
 
-```bash
-docker compose up -d --build
+After the one-time setup below, two commands from the project folder are all
+you need:
+
+```powershell
+.\run     # stop any previous run, start everything on freshly seeded data, open the dashboard
+.\stop    # stop everything
 ```
 
-First build compiles the API inside a `gradle:8.8-jdk21` build stage — expect
-a few minutes on the first run while dependencies download; subsequent builds
-are cached.
+`.\run` takes about two minutes. It always starts clean: nothing from the last
+session is carried over. `.\run -Rebuild` also rebuilds the API and the UI
+first; use it after changing code. (In the old `cmd` prompt, type `run` and
+`stop` without the `.\`.)
 
-Check everything is up:
+The same steps one at a time, if you want to keep data between runs:
 
-```bash
-curl http://localhost:8080/api/health
+```powershell
+# Once: downloads portable JDK 21, Gradle 8.8, Redis 7.2, MongoDB 7.0, mongosh and
+# Neo4j 5.20 into %USERPROFILE%\SentinelNative, then builds the API jar and the UI.
+powershell -ExecutionPolicy Bypass -File scripts\native\setup-native.ps1
+
+# Redis, MongoDB (rs0), Neo4j, API and UI, keeping existing data. Safe to re-run.
+powershell -ExecutionPolicy Bypass -File scripts\native\start-native.ps1
+
+# Load the deterministic demo state (about 15 seconds).
+cd scripts
+node seed.mjs --wipe
+cd ..
+
+# Check the graded path end to end.
+powershell -ExecutionPolicy Bypass -File scripts\smoke.ps1
+
+# When finished.
+powershell -ExecutionPolicy Bypass -File scripts\native\stop-native.ps1
 ```
 
-```json
-{
-  "status": "UP",
-  "stores": { "redis": "UP", "mongo": "UP", "neo4j": "UP" }
-}
-```
-
-| Service | URL |
+| | |
 |---|---|
-| Dashboard (UI) | http://localhost:3000 |
-| API | http://localhost:8080 |
-| Neo4j Browser | http://localhost:7474 (neo4j / sentinel-dev) |
-| Mongo | `mongodb://localhost:27017/sentinel?replicaSet=rs0` |
+| Dashboard | http://localhost:3000 |
+| API health | http://localhost:8080/api/health |
+| Neo4j Browser | http://localhost:7474 (`neo4j` / `sentinel-dev`) |
+| MongoDB | `mongodb://localhost:27017/sentinel?replicaSet=rs0&directConnection=true` |
 | Redis | `redis://localhost:6379` |
+| Logs | `%USERPROFILE%\SentinelNative\logs` |
+| Data | `%USERPROFILE%\SentinelNative\data` |
 
-Tear down:
+`start-native.ps1 -DbOnly` starts only the three databases.
+`start-native.ps1 -Rebuild` rebuilds the jar and the UI bundle first; use it
+after changing code. For UI work, `cd ui; npm run dev` serves a hot-reloading
+copy on port 5173 against the same API.
 
-```bash
-docker compose down          # keep data volumes
-docker compose down -v       # wipe everything, including the replica set
-```
+Nothing runs in the background once `stop-native.ps1` has finished. To remove
+everything, delete `%USERPROFILE%\SentinelNative`.
 
-## Status
+## The dashboard
 
-- [x] Slice 0 — `CLAUDE.md` frozen, repo skeleton
-- [x] Slice 1 — Compose stack (Redis / Mongo rs0 / Neo4j / API), `/api/health`
-- [x] Slice 2 — generator → `txn:stream` (~150 txn/s, D-19 velocity-safe)
-- [x] Slice 3 — consumer group, idempotency, blocklist check, PEL reclaim
-- [x] Slice 4 — Mongo write path (validators, 15-index registry, bulk writer)
-- [x] Slice 5 — four detectors, scoring, alert persistence, fraud injectors
-- [x] Slice 6 — triage API (full CRUD, block-card cross-store transaction)
-- [x] Slice 7 — aggregation pipelines A–E
-- [x] Slice 8 — `explain()` evidence capture (`docs/evidence/`)
-- [x] Slice 9 — minimal UI for the graded path ⛳ **grading gate**
-- [x] Slice 10 — seed script, deterministic demo state
-- [x] Slice 11 — Neo4j constraints + batched graph projector
-- [x] Slice 12 — `RING_FOR_CARD` / `ALL_RINGS` queries, cooldown-gated async
-      trigger, `ring_snapshots` persistence
-- [x] Slice 13 — Cytoscape ring panel, `fcose` layout
-- [x] Slice 14 — STOMP `/ws`, three live channels, settlement tape
-- [x] Slice 15 — edge-trace animation, tape print-in, fullscreen graph
-- [x] Slice 16 — rule-activity chart, all-rings panel
-- [x] Slice 17 — empty/loading/error states, contrast pass
-- [ ] Slice 18 — README/report/deck
+| View | What it shows | What it demonstrates |
+|---|---|---|
+| Live monitor | KPI tiles, the live settlement tape, the alert feed, and four fraud patterns to inject | Redis Streams, the four detectors, the three STOMP channels |
+| Triage | Filterable, paged alert queue with the live query plan; case drawer with evidence, notes, status, assignment; raise, dismiss and bulk dismiss; blocked cards | MongoDB create, read, update and delete; index #10; the `$lookup` pipeline; the Mongo to Redis block-card write |
+| Fraud rings | Interactive graph for any card, the Cypher behind it, ring history, most-shared devices and IPs | The Neo4j traversal and the Redis to Neo4j handoff |
+| Analytics | Alerts by severity, fraud rate by category, detector activity, score bands, watchlist | Aggregation pipelines A to D, each labelled with its stages |
+| Data stores | Live figures from each store and the index registry | What each database holds, and the 16 declared indexes |
 
-⛳ **GRADING GATE CLEARED.** CRUD, indexing and aggregation are all
-demonstrable live from the dashboard at http://localhost:3000 — no curl
-needed. Triage queue (filtered/paged, hits index #10), alert detail drawer
-(pipeline E's `$lookup` context, evidence per fired rule), status lifecycle
-with only-legal-transitions shown, notes (add/edit/delete), block-card
-(cross-store transaction) and dismiss (archive-then-delete), a "Raise case"
-button for manual Create, the `$facet` KPI strip polling every 3s, the
-Category Risk (pipeline A) and Rule Activity (pipeline B) charts, a
-Watchlist leaderboard (pipeline C), and a live index registry viewer
-(`GET /api/admin/indexes`) are all wired in and verified against the
-running stack.
+### A five-minute demo
 
-### UI
+1. **Live monitor.** Traffic is flowing at about 150 a second. Point at the tape.
+2. **Inject a velocity burst.** One card, 12 transactions in 20 seconds. A
+   medium alert appears in the feed from the fifth transaction on.
+3. **Inject impossible travel.** Chennai, then Delhi two seconds later. Open the
+   alert: the evidence shows the distance, the gap and the implied speed.
+4. **Inject a fraud ring.** Six cards start sharing one device. Fan-out fires
+   from the third card, and a notice appears when Neo4j has resolved the group.
+   Choose **View ring**.
+5. **Fraud rings.** Open the seeded ring `C-9001` for the clean six-card picture,
+   show the Cypher, then run the same query in Neo4j Browser.
+6. **Triage.** Filter to New and High. The query plan line shows `IXSCAN` on
+   `status_1_severity_1_ts_-1` with keys examined equal to documents returned.
+   Open an alert, start investigating, add a note, and block the card.
+7. **Back on the live monitor**, that card's next transactions are struck through
+   and marked Declined: a MongoDB write that changed the live stream through Redis.
 
-React 18 + Vite, served by nginx in production (`ui/Dockerfile`), which
-reverse-proxies `/api/*` to the `api` container (`ui/nginx.conf`) — the
-browser only ever talks to one origin, so no CORS configuration exists
-anywhere. Dev mode: `cd ui && npm install && npm run dev` (Vite proxies
-`/api` to `localhost:8080` instead — see `ui/vite.config.js`).
+A ring injected into live traffic can come back larger than six cards, because
+every organic device and IP is legitimately shared by two cards and the
+traversal follows them. The seeded ring is isolated and always shows exactly
+six. See `CLAUDE.md` §8 D-31.
 
-Design tokens follow spec §7.2/7.3 (dark ground, amber/vermilion/teal
-accent triad, Space Grotesk + IBM Plex). One deliberate correction: the
-spec's own `--text-mute` (`#7D93A3`) sits right at ~4.75:1 contrast on
-`--panel` — spec §7.7 flags this exact pair as the one most likely to
-fail — so it's lightened (`#9FB0BD`) for real margin. Motion (settlement
-tape print-in, ring edge-trace) is Slice 15, deliberately deferred; this
-slice is static and functional by design.
+## API
 
-### Index evidence
+| | |
+|---|---|
+| `GET /api/health` | Per-store status |
+| `GET /api/alerts` | Queue: `status`, `severity`, `cardId`, `rule`, `page`, `size` |
+| `GET /api/alerts/explain` | Live query plan for a `status` and `severity` filter |
+| `GET /api/alerts/{id}` | Alert with its transaction, prior transactions and block status |
+| `POST /api/alerts/manual` | Raise a case |
+| `PATCH /api/alerts/{id}/status` · `/assign` | Move through the lifecycle; assign |
+| `POST` · `PATCH` · `DELETE /api/alerts/{id}/notes[/{noteId}]` | Notes |
+| `DELETE /api/alerts/{id}` · `DELETE /api/alerts?status=` | Dismiss one; dismiss all in a status |
+| `GET /api/cards/blocked` · `POST` · `DELETE /api/cards/{id}/block` | Blocklist |
+| `GET /api/txns?cardId=` | Transaction history |
+| `GET /api/rings/{cardId}` · `/api/rings` · `/api/rings/snapshots` | Ring for a card; shared entities; history |
+| `GET /api/stats/kpi` · `/throughput` · `/fraud-by-category` · `/severity-timeline` · `/top-cards` | Aggregations and the ingest rate |
+| `POST /api/control/inject/velocity` · `/amount` · `/travel` · `/ring` | Fraud patterns |
+| `POST /api/control/generator/pause` · `/resume` | Background traffic |
+| `GET /api/admin/indexes` · `/mongo-stats` · `/redis-stats` · `/neo4j-stats` | Store internals |
 
-`node scripts/explain-evidence.mjs` (from `scripts/`, `npm install` once)
-captures live before/after `explain()` plans for six probe queries — see
-[`docs/evidence/explain-report.md`](docs/evidence/explain-report.md).
-Latest run: dropping the target index shifted every probe from a
-collection scan (or a less-specific fallback index) to the intended
-index seek, cutting documents examined by up to **~3,000×**. One negative
-control (a regex over note bodies) is included deliberately — no index
-helps it, and the report says so rather than only showing green rows.
+STOMP endpoint `/ws`: `/topic/txn` (sampled to about 8 a second, flagged rows
+always sent), `/topic/alerts` (every alert, full document), `/topic/rings`
+(each ring as it is resolved).
 
-### Deterministic demo state
+## Detection rules
 
-```bash
-cd scripts && npm install     # once
-node seed.mjs --wipe          # ~12s: wipes and reseeds Mongo, Redis, Neo4j
-bash smoke.sh                 # ~2s: create/update/delete/aggregate/explain/ring sanity check
-```
+| Rule | Fires when | Weight |
+|---|---|---|
+| Velocity | 5 or more transactions on a card in 60 s | 40 |
+| Amount anomaly | Amount above mean + 3σ of the card's last 20 (at least 5) | 25 |
+| Impossible travel | Implied speed above 900 km/h over at least 200 km | 70 |
+| Entity fan-out | One device or IP used by 3 or more cards in 600 s | 55 |
 
-`--wipe` gives a byte-identical demo every time (seeded `mulberry32` PRNG, no
-`Math.random`): 50,000 transactions and 2,000 alerts with a deliberate,
-non-uniform shape — JEWELRY carries a **~6× fraud-rate lead** over every
-other category (pipeline A's bar chart needs a clear leader, not a flat
-spread), severities split 60/30/10 LOW/MEDIUM/HIGH, statuses split
-40/25/20/15 NEW/INVESTIGATING/CONFIRMED_FRAUD/FALSE_POSITIVE, and alerts
-land across every minute of the last hour so the timeline chart is
-populated, not spiky. Plus the seeded ring insurance policy: 6 cards
-(`C-9001`…`C-9006`) sharing one device and two IPs, written to both Mongo
-*and* Neo4j directly (constraints included — Slice 11's projector doesn't
-exist yet, so this script owns that narrow piece of §4.4 on its own), with
-a pre-built `ring_snapshots` document and one card (`C-9004`) already
-blocked. `C-9001` sits at `NEW`/HIGH — the row to click first.
+The score is the sum of the weights, capped at 100. Low is 1 to 39, medium 40
+to 69, high 70 and above. Thresholds live in `api/src/main/resources/application.yml`.
 
-Re-running without `--wipe` is idempotent: the PRNG is seeded, so a second
-run regenerates identical ids and the writes are treated as no-ops rather
-than erroring or duplicating.
+## Index evidence
 
-### Graph projector
+`docs/evidence/explain-report.md` holds captured before and after `explain()`
+plans for six probe queries. Regenerate it with
+`node scripts/explain-evidence.mjs` from `scripts/`. The Triage view shows the
+same thing live for whatever filter is selected.
 
-`GraphProjector` (batched, non-blocking, mirroring `MongoBulkWriter`'s
-shape) turns every processed transaction into `MERGE`d `Card`/`Device`/`Ip`
-nodes and `USED_DEVICE`/`FROM_IP` relationships in Neo4j — a bounded queue,
-flushed on 100 edges or 500ms, `UNWIND`+`MERGE` in one round trip, never a
-synchronous Bolt call on the consumer's hot path. `Neo4jConstraintsConfig`
-ensures the four uniqueness constraints (CLAUDE.md §4.4) at boot, the same
-`IF NOT EXISTS` idempotency pattern as `MongoIndexConfig`. Live-verified: the
-graph grows continuously from organic traffic (confirmed via `cypher-shell`
-node/relationship counts climbing over a few seconds), queue depth stays
-flat (not backlogging), and the seeded ring from Slice 10 survives untouched
-alongside it. `GET /api/admin/mongo-stats` also reports the projector's
-queue depth / flush count / dropped count, next to the Mongo bulk writer's.
+## Presenting it
 
-### Ring queries
+- `docs/Teacher_demo.md` explains every component, gives a step-by-step demo
+  script, and answers the likely questions.
+- `docs/presentation/` holds the material for a slide deck: the content
+  (`SentinelStream_PPT_content.md`), six diagrams, thirteen screenshots of the
+  running system, and a prompt for generating the deck (`PPT_prompt.md`).
 
-`GET /api/rings/{cardId}` runs `RING_FOR_CARD` (bounded `*1..6` traversal,
-shared-entity filter — CLAUDE.md §4.4) directly against Neo4j; `GET
-/api/rings` runs the global `ALL_RINGS` sweep. When the consumer's
-`ENTITY_FANOUT` detector fires, `RingQueryTrigger` runs the same query
-asynchronously (cooldown-gated via `ring:cooldown:{cardId}`, never inline on
-the hot path) and persists the result through `RingSnapshotWriter` into
-`ring_snapshots`, so the demo can re-render a past ring without re-querying
-Neo4j. `POST /api/control/inject/ring` fires a fresh 6-card ring on a
-newly-generated device/IP identity each call (not the seed script's fixed
-`D-SEED-01`, which would otherwise accumulate contamination across repeated
-test runs — CLAUDE.md §8 D-30). Live-verified end to end: injecting a ring
-produces `"ENTITY_FANOUT fired"` → `"Ring snapshot R-000N persisted"` log
-lines within milliseconds, and the seeded ring (`C-9001`) stays at exactly 6
-cards across repeated live injections.
+## Troubleshooting
 
-**Consumer resilience (§8 D-32).** `scripts/seed.mjs --wipe`'s `FLUSHDB`
-deletes `txn:stream` and its consumer group even while the API's own
-subscription is live. `StreamConsumerConfig` now survives this without a
-restart: the read subscription is built with `cancelOnError(t -> false)` so
-a `NOGROUP` read error no longer kills the poll loop outright, and the
-existing 30s stale-entry reclaim task detects a missing group (via the full
-exception cause chain, not just the top-level message) and recreates it —
-so `docker logs` shows `"Processed"` counts continuing straight through a
-live `--wipe` with no gap and no manual intervention required.
-
-### Ring panel (Slice 13)
-
-`RingPanel.jsx` renders `RING_FOR_CARD`'s result with `cytoscape` +
-`cytoscape-fcose` (versions pinned in CLAUDE.md §2): card nodes round, entity
-nodes (device/IP) square, a blocked card in red, the seed card outlined. Three
-entry points open it: the topbar's **View ring** button (defaults to the
-seeded `C-9001`), a row click in the Watchlist panel, and a **View ring**
-button in the alert detail drawer — plus the injector panel offers one
-pointed at the just-injected ring's first card. The panel also accepts any
-typed card id, re-running the live Neo4j query rather than reading a cached
-snapshot, so it reflects the graph as it stands right now.
-
-Verified via `curl` that the built bundle actually includes `cytoscape`/
-`cytoscape-fcose` and that `/api/rings/{cardId}` (reverse-proxied through
-nginx exactly as the browser would call it) returns the shape the panel
-expects. **Not yet verified in an actual browser** — no headless-browser tool
-was available in this session, so the graph's on-screen rendering, layout,
-and click interactions are unconfirmed; worth a manual check before the demo.
-
-### Live channels (Slice 14)
-
-`WebSocketConfig` registers a STOMP broker at `/ws` (SockJS-compatible, but
-the UI connects with a plain WebSocket to `/ws/websocket` via `@stomp/stompjs`
-7.0 — no `sockjs-client` dependency needed). Three topics, per CLAUDE.md §6:
-
-- `/topic/alerts` — full alert document, unsampled. `RedisStompBridge`
-  relays Redis's existing `alerts:live` Pub/Sub channel (already wired in
-  Slice 5) straight onto STOMP.
-- `/topic/rings` — same relay pattern, off `rings:live` (already wired in
-  Slice 12's `RingQueryTrigger`).
-- `/topic/txn` — sampled to ~8 msg/s (§8 D-05), flagged transactions always
-  pass. Populated directly from `TransactionConsumer` via `TxnBroadcaster`,
-  not through Redis — it's a single-process, in-memory rate gate, not a
-  cross-process notification, so it isn't in the §4.1 key registry (§8 D-33).
-
-`SettlementTape.jsx` renders `/topic/txn` as a live-scrolling tape (declined
-rows struck through, flagged rows highlighted, capped at 200 DOM rows). The
-topbar's live-dot now reflects actual STOMP connection state
-(`useStompConnected`) instead of being static, and a live `/topic/alerts`
-message nudges the triage queue and KPI strip to refetch immediately rather
-than waiting out their poll interval.
-
-Verified with a raw STOMP test client (a small Node `ws` script, not a
-browser — same caveat as Slice 13's ring panel above) against both the API directly
-(`localhost:8080/ws/websocket`) and through the nginx-proxied UI port
-(`localhost:3000/ws/websocket`, which needed `nginx.conf`'s `Upgrade`/
-`Connection` headers added): all three topics deliver messages, and a live
-alert's `ts` field now matches `GET /api/alerts/{alertId}`'s plain-ISO-string
-format exactly (an early draft used BSON's `Document.toJson()`, which wraps
-dates as `{"$date": "..."}` instead — caught by the same test client before
-it ever reached a browser; see CLAUDE.md §8 D-33).
-
-### Motion polish (Slice 15)
-
-Matches the design spec's §7.5/7.6 motion contract:
-
-- **Settlement tape print-in** — each new row wipes in over 120ms (a
-  `clip-path` reveal, not literal per-glyph typing — same visual read, far
-  cheaper than a JS interval per character), then sits still.
-- **Flagged-row fade** — a flagged tape row gets a left `--signal` border and
-  one 400ms background fade (`animation-iteration-count` implicitly 1, so it
-  never loops into a persistent pulse).
-- **Ring edge-trace** — on load, a ring's edges reveal one at a time, timed
-  so the *whole set* finishes at 600ms regardless of ring size (a 6-edge and
-  a 40-edge ring both trace in exactly 600ms, not proportionally longer for
-  the bigger one). The only animation over 600ms in the app, matching the
-  spec's "the only animation longer than half a second" framing.
-- **`prefers-reduced-motion`** — both effects are defined only inside a
-  `@media (prefers-reduced-motion: no-preference)` block (tape) or an
-  explicit `matchMedia` check (ring edge-trace), so reduced-motion disables
-  the animation and keeps the colour states, per spec, by construction
-  rather than a runtime toggle that could drift out of sync.
-- **Fullscreen ring graph** — a button in the ring panel header expands it
-  to the full viewport width and calls Cytoscape's `resize()`/`fit()` after
-  the CSS transition, so the graph re-lays-out to fill the new space instead
-  of staying pinned at its original small-panel size.
-
-Verified: production build is clean, and the served CSS/JS bundles were
-grepped to confirm the new animation names, the `prefers-reduced-motion`
-media query, and the fullscreen toggle logic actually shipped. **Not
-verified in an actual browser** — same caveat as Slices 13/14: no
-headless-browser tool was available this session, so the print-in timing,
-edge-trace pacing, and fullscreen resize behavior are unconfirmed on screen.
-
-### Theme
-
-The UI runs a warm-charcoal palette with earthy accents (terracotta, brick,
-sage, plum) rather than the navy/neon "dashboard template" look — still
-dark (this runs on a projector for a live demo), just grounded in warmer
-neutrals. All 8 tokens live in `styles.css`'s `:root`; the only places that
-repeat literal hex instead of `var(...)` are Cytoscape's node/edge styles in
-`RingPanel.jsx` (it renders to `<canvas>`, which can't read CSS custom
-properties, so those are kept in sync by hand against the same values).
-[Palette preview](https://claude.ai/code/artifact/5b70bb0d-1222-4698-8327-9b3659380e0f)
-shows the tokens applied to the real component shapes with sample data.
-
-### Secondary panels (Slice 16)
-
-Two panels the plan marks cuttable, built because both reuse data/endpoints
-that already existed:
-
-- **Rule Activity** (`RuleActivityChart.jsx`) — a horizontal bar chart of
-  detector fire counts over the last 60 minutes, colour-coded per rule. Reads
-  the KPI `$facet` pipeline's `byRule` sub-pipeline (already computed for the
-  KPI strip) under the *same* `['kpi']` query key as `KpiStrip`, so React
-  Query dedupes the two into one poll rather than doubling the facet query.
-- **All Rings** (`AllRingsPanel.jsx`) — the `ALL_RINGS` global sweep
-  (CLAUDE.md §4.4, distinct from the seed-card-specific `RING_FOR_CARD`
-  every other ring entry point uses): every device/IP currently shared by
-  3+ cards, ranked by fan-out size. Clicking a row opens the same
-  `RingPanel` used everywhere else, seeded from that entity's first card.
-
-Verified: production build clean; grepped the served bundle for both
-panels' UI strings and confirmed `/api/rings` and the KPI facet's `byRule`
-field return the expected shapes through the nginx-proxied port. **Not
-verified in an actual browser** — same caveat as Slices 13-15.
-
-### Empty/loading/error states, contrast pass (Slice 17)
-
-Matches spec §7.6's quality floor — the one item the plan's cut order keeps
-even under time pressure is the contrast fix, so that's covered here too:
-
-- **Empty states name the next action**, per spec ("No alerts yet. Inject a
-  fraud pattern to see detection live." — not "No data available."). The one
-  remaining holdout (`TopCardsPanel`'s bare "No alerts yet.") is now
-  consistent with every other panel.
-- **Settlement tape loading** — real skeleton rows in the tape's exact grid
-  geometry (not a spinner or generic text), so the first live row doesn't
-  shift the layout when it lands. Shown only before the STOMP connection
-  has ever succeeded; a plain "Waiting for traffic…" covers the
-  connected-but-idle case.
-- **Stream disconnected banner** — "Stream disconnected. Reconnecting in
-  3s." (the exact wording spec §7.6 gives as its example), shown only after
-  a connection that had succeeded once drops. An inline banner, not a toast.
-- **Contrast fix, re-verified against the new theme** — computed WCAG
-  contrast ratios for every text/panel pairing after the palette change and
-  caught a real regression: `--critical`'s first pick (`#B3503D`) checked
-  out by eye but only hit 3.19:1 against `--panel` — below the 4.5:1 AA
-  floor for the small (10px) pill/status text it's actually used as, where
-  the theme it replaced (`#E2574C`, 4.58:1) had passed. Lightened to
-  `#D0725D` (4.82:1) and rebuilt. `--text-mute` (the pairing spec §7.7
-  itself calls out) holds at 7.3:1, comfortably clear.
-- A stray inaccuracy caught while doing this pass, unrelated to the above:
-  Slice 15's fullscreen-toggle comment claimed a 150ms width transition that
-  was never actually implemented (the toggle snapped instantly). Added the
-  real transition (gated behind `prefers-reduced-motion`, consistent with
-  every other animation in the app) and corrected the comment.
-
-Verified: production build clean; grepped the served bundle to confirm the
-new critical color, the skeleton/error-banner CSS and copy, and the
-`TopCardsPanel` text fix all actually shipped; recomputed contrast ratios in
-Node against the exact shipped hex values. **Not verified in an actual
-browser** — same caveat as every UI slice this session.
-
-See `docs/PLAN.md` Part 6 for the full build order and cut list.
+- **A port is already in use.** `start-native.ps1` leaves anything already
+  listening alone. Run `stop-native.ps1` first for a clean start.
+- **The dashboard says the API is not responding.** Read
+  `%USERPROFILE%\SentinelNative\logs\api.out.log`. The API takes about 15
+  seconds to start.
+- **The alert detail shows no triggering transaction.** Raw transactions expire
+  after 24 hours by design. Re-run `node seed.mjs --wipe`.
+- **Neo4j runs out of memory.** Lower `server.memory.heap.max_size` in
+  `ext\neo4j\...\conf\neo4j.conf`. Do not raise it.
+- **The amount-anomaly injector answers 409.** The rule needs five earlier
+  payments on a card. Let traffic run for two minutes after a cold start.

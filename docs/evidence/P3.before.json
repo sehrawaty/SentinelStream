@@ -17,9 +17,8 @@
         }
       ]
     },
-    "queryHash": "7A3D735A",
-    "planCacheKey": "7A3D735A",
-    "optimizationTimeMillis": 0,
+    "queryHash": "BDCF6900",
+    "planCacheKey": "BDCF6900",
     "maxIndexedOrSolutionsReached": false,
     "maxIndexedAndSolutionsReached": false,
     "maxScansToExplodeReached": false,
@@ -45,10 +44,10 @@
   },
   "executionStats": {
     "executionSuccess": true,
-    "nReturned": 3300,
-    "executionTimeMillis": 36,
+    "nReturned": 808,
+    "executionTimeMillis": 98,
     "totalKeysExamined": 0,
-    "totalDocsExamined": 101935,
+    "totalDocsExamined": 159424,
     "executionStages": {
       "stage": "COLLSCAN",
       "filter": {
@@ -65,17 +64,17 @@
           }
         ]
       },
-      "nReturned": 3300,
-      "executionTimeMillisEstimate": 2,
-      "works": 101936,
-      "advanced": 3300,
-      "needTime": 98635,
+      "nReturned": 808,
+      "executionTimeMillisEstimate": 20,
+      "works": 159425,
+      "advanced": 808,
+      "needTime": 158616,
       "needYield": 0,
-      "saveState": 101,
-      "restoreState": 101,
+      "saveState": 159,
+      "restoreState": 159,
       "isEOF": 1,
       "direction": "forward",
-      "docsExamined": 101935
+      "docsExamined": 159424
     }
   },
   "command": {
@@ -87,10 +86,10 @@
     "$db": "sentinel"
   },
   "serverInfo": {
-    "host": "0f77bcd46056",
+    "host": "Yash-Victus",
     "port": 27017,
-    "version": "7.0.41",
-    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+    "version": "7.0.14",
+    "gitVersion": "ce59cfc6a3c5e5c067dca0d30697edd68d4f5188"
   },
   "serverParameters": {
     "internalQueryFacetBufferSizeBytes": 104857600,
@@ -101,12 +100,12 @@
     "internalQueryProhibitBlockingMergeOnMongoS": 0,
     "internalQueryMaxAddToSetBytes": 104857600,
     "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
-    "internalQueryFrameworkControl": "forceClassicEngine"
+    "internalQueryFrameworkControl": "trySbeRestricted"
   },
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7685336877993295953"
+      "$timestamp": "7696201023538331828"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -114,6 +113,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7685336877993295953"
+    "$timestamp": "7696201023538331827"
   }
 }

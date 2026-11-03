@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Data model</title><link rel="stylesheet" href="diagram.css">
+<style>
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th { padding: 5px 6px; border-bottom: 1.5px solid #d14a3a; text-align: left; font-size: 13px; font-weight: 600; color: #a83224; }
+  td { padding: 9px 6px; border-bottom: 1px solid #f1cdc7; font-size: 14px; color: #33363d; }
+  td.mono { font-size: 13.5px; }
+  .doc { position: absolute; padding: 12px 14px; border: 1.2px solid #1f8f4e; border-radius: 8px; background: #ffffff; }
+  .doc h4 { margin: 0 0 6px; font-family: Consolas, monospace; font-size: 16px; color: #176b34; }
+  .doc .mono { display: block; font-size: 13.5px; line-height: 1.55; color: #33363d; }
+  .doc .mono b { color: #176b34; font-weight: 600; }
+  .doc .hint { margin-top: 6px; font-size: 13px; color: #6f737c; }
+  .glabel { position: absolute; font-family: Consolas, monospace; font-size: 13px; color: #33363d; background: #edf3fd; padding: 0 3px; transform: translateX(-50%); white-space: nowrap; }
+  .nlabel { position: absolute; font-family: Consolas, monospace; font-size: 13px; color: #16181d; transform: translateX(-50%); white-space: nowrap; }
+</style></head>
+<body>
+
+<!-- Redis -->
+<div class="box redis" style="left:40px;top:40px;width:490px;height:790px">
+  <h3>Redis</h3><p class="sub">Keys named after the question they answer</p>
+  <table>
+    <tr><th>Key</th><th>Type</th><th>TTL</th><th>Answers</th></tr>
+    <tr><td class="mono">txn:stream</td><td>Stream</td><td>cap 100k</td><td>what arrived, in order</td></tr>
+    <tr><td class="mono">idem:txn:{id}</td><td>String</td><td>900 s</td><td>seen before?</td></tr>
+    <tr><td class="mono">card:{id}:txns</td><td>ZSet</td><td>3600 s</td><td>how many in 60 s</td></tr>
+    <tr><td class="mono">card:{id}:amts</td><td>ZSet</td><td>3600 s</td><td>usual amount</td></tr>
+    <tr><td class="mono">card:{id}:geo</td><td>GEO</td><td>3600 s</td><td>how far apart</td></tr>
+    <tr><td class="mono">device:{id}:cards</td><td>ZSet</td><td>1800 s</td><td>cards per device</td></tr>
+    <tr><td class="mono">ip:{ip}:cards</td><td>ZSet</td><td>1800 s</td><td>cards per IP</td></tr>
+    <tr><td class="mono">blocklist:cards</td><td>Set</td><td>none</td><td>is it blocked?</td></tr>
+    <tr><td class="mono">ring:cooldown:{id}</td><td>String</td><td>300 s</td><td>ring queried lately?</td></tr>
+    <tr><td class="mono">metrics:txn:{min}</td><td>String</td><td>300 s</td><td>live rate</td></tr>
+  </table>
+  <p style="margin-top:18px">Sorted-set score is the timestamp, so a window is trimmed by score and counted in constant time.</p>
+  <p>Memory is bounded by TTLs, not by eviction: the policy is <span class="mono">noeviction</span>.</p>
+  <p><span class="mono">blocklist:cards</span> is the one key with no TTL. It records an analyst's decision and must survive a restart.</p>
+</div>
+
+<!-- MongoDB -->
+<div class="box mongo" style="left:555px;top:40px;width:490px;height:790px">
+  <h3>MongoDB</h3><p class="sub">Documents shaped by how they are read</p>
+</div>
+<div class="doc" style="left:571px;top:112px;width:458px;height:316px">
+  <h4>alerts</h4>
+  <span class="mono">alertId · cardId · severity · score · status<br>assignee · origin · resolution · cardBlocked<br>
+  <b>rules[ ]</b>&nbsp; { type, weight, <b>evidence { … }</b> }<br>
+  <b>notes[ ]</b>&nbsp; { noteId, author, body, at, editedAt }<br>
+  <b>statusHistory[ ]</b>&nbsp; { from, to, by, at }<br>
+  txnId &rarr; transactions.txnId</span>
+  <p class="hint">Three arrays are embedded because they are always read with the alert. <b>evidence</b> has a different shape for each rule type:</p>
+  <span class="mono" style="font-size:12.5px;color:#4b4f58">VELOCITY &nbsp;{ count, windowSec, threshold }<br>IMPOSSIBLE_TRAVEL &nbsp;{ fromCity, toCity, km, impliedKmh }</span>
+</div>
+<div class="doc" style="left:571px;top:444px;width:458px;height:206px">
+  <h4>transactions</h4>
+  <span class="mono">txnId (unique) · cardId · amount · ts<br><b>merchant { }</b> id, name, category, mcc<br><b>loc</b> GeoJSON Point · deviceId · ip<br>
+  <b>flagged · score</b> copied from the alert<br>declined · ingestedAt</span>
+  <p class="hint">Deleted automatically after 24 hours (TTL index).</p>
+</div>
+<div class="doc" style="left:571px;top:666px;width:144px;height:148px">
+  <h4 style="font-size:14px">alerts_archive</h4><p class="hint" style="margin:0">Dismissed alerts. Deleted after 7 days.</p>
+</div>
+<div class="doc" style="left:728px;top:666px;width:144px;height:148px">
+  <h4 style="font-size:14px">blocked_cards</h4><p class="hint" style="margin:0">Who blocked which card, and why.</p>
+</div>
+<div class="doc" style="left:885px;top:666px;width:144px;height:148px">
+  <h4 style="font-size:14px">ring_snapshots</h4><p class="hint" style="margin:0">Each ring as it was found.</p>
+</div>
+
+<!-- Neo4j -->
+<div class="box neo" style="left:1070px;top:40px;width:490px;height:790px">
+  <h3>Neo4j</h3><p class="sub">Entities and how they connect</p>
+  <div style="position:absolute;left:16px;right:16px;top:520px">
+    <ul style="margin:0">
+      <li>A transaction is an event, not a node. The relationship carries a <span class="mono">count</span> instead.</li>
+      <li>Four uniqueness constraints, each backed by an index, so the starting card is found by a seek.</li>
+      <li>Every write is a batched <span class="mono">MERGE</span>, so a replay increments a counter.</li>
+    </ul>
+  </div>
+</div>
+<svg class="wires" viewBox="0 0 1600 900">
+  <g style="stroke:#8a93a3;stroke-width:2">
+    <line x1="1180" y1="200" x2="1315" y2="320"/><line x1="1180" y1="440" x2="1315" y2="320"/>
+    <line x1="1450" y1="200" x2="1315" y2="320"/>
+    <line x1="1450" y1="200" x2="1460" y2="440"/><line x1="1180" y1="440" x2="1460" y2="440"/>
+  </g>
+  <circle cx="1180" cy="200" r="24" style="fill:#2a78d6;stroke:#fff;stroke-width:3"/>
+  <circle cx="1180" cy="440" r="24" style="fill:#2a78d6;stroke:#fff;stroke-width:3"/>
+  <circle cx="1450" cy="200" r="24" style="fill:#2a78d6;stroke:#fff;stroke-width:3"/>
+  <rect x="1289" y="294" width="52" height="52" rx="9" style="fill:#eb6834;stroke:#fff;stroke-width:3"/>
+  <rect x="1436" y="416" width="48" height="48" transform="rotate(45 1460 440)" style="fill:#1baf7a;stroke:#fff;stroke-width:3"/>
+</svg>
+<span class="nlabel" style="left:1180px;top:150px">:Card</span>
+<span class="nlabel" style="left:1450px;top:150px">:Card</span>
+<span class="nlabel" style="left:1150px;top:472px">:Card</span>
+<span class="nlabel" style="left:1315px;top:354px">:Device</span>
+<span class="nlabel" style="left:1460px;top:482px">:Ip</span>
+<span class="glabel" style="left:1228px;top:250px">USED_DEVICE {count}</span>
+<span class="glabel" style="left:1484px;top:308px">FROM_IP {count}</span>
+</body>
+</html>

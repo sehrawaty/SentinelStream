@@ -28,29 +28,33 @@ schema mid-project. If a change looks necessary, stop and raise it.
 
 ## §2 Pinned versions, ports and resource limits
 
+The stack runs **natively on Windows, without Docker** (§8 D-34). Everything
+below is a portable build unpacked under `%USERPROFILE%\SentinelNative\ext` by
+`scripts/native/setup-native.ps1`; nothing is installed system-wide and nothing
+runs as a service.
+
 ### Runtimes
 | Component | Version | Note |
 |---|---|---|
-| JDK | **21** (Temurin) | Gradle toolchain pins it; local JDK version irrelevant |
+| JDK | **21** (Temurin, portable zip) | Gradle toolchain pins it |
 | Spring Boot | **3.3.4** | |
-| Gradle | **8.8** (wrapper) | |
-| Node | **20.14 LTS** | |
-| Docker Compose | schema v3.8 | |
+| Gradle | **8.8** (wrapper, `api/gradlew.bat`) | |
+| Node | **20.14 LTS or newer** | built and run here on 24.x |
 
-### Images
-| Service | Image | Why pinned here |
+### Stores
+| Service | Build | Why pinned here |
 |---|---|---|
-| Redis | `redis:7.2-alpine` | Streams + `ZRANGEBYSCORE` + GEO all stable |
-| MongoDB | `mongo:7.0` | `$dateTrunc`, `$getField`; run as single-node RS |
-| Neo4j | `neo4j:5.20-community` | Cypher 5, `CALL {}` subqueries |
-| mongosh | `mongodb/mongodb-community-server:7.0-ubi8` | evidence scripts |
+| Redis | **7.2.16**, `redis-windows/redis-windows` (cygwin) | Streams + `ZRANGEBYSCORE` + GEO all stable. Redis ships no official Windows binary; this community build tracks the same 7.2 line |
+| MongoDB | **7.0.14** community, official zip | `$dateTrunc`, `$getField`; run as single-node RS |
+| Neo4j | **5.20.0** community, official zip | Cypher 5, `CALL {}` subqueries |
+| mongosh | **2.3.1**, official zip | `rs.initiate`, evidence scripts |
 
 ### Key libraries
 `spring-boot-starter-data-mongodb`, `-data-redis`, `-data-neo4j`, `-websocket`,
 `-validation`, `-actuator`; React 18.3; Vite 5.3; Cytoscape 3.29 + `cytoscape-fcose`
 2.2; Recharts 2.12; `@stomp/stompjs` 7.0; TanStack Query 5.
 
-### Ports (host → container)
+### Ports (all bound to 127.0.0.1)
 | Service | Port | |
 |---|---|---|
 | Redis | 6379 | |
@@ -58,19 +62,21 @@ schema mid-project. If a change looks necessary, stop and raise it.
 | Neo4j HTTP (Browser) | 7474 | open during demo, §9 step 6 |
 | Neo4j Bolt | 7687 | |
 | Spring Boot API | 8080 | `/api/*`, `/ws` |
-| React dev (Vite) | 5173 | dev only |
-| React prod (nginx) | 3000 | demo runs against this |
+| React dev (`vite`) | 5173 | dev only |
+| React build (`vite preview`) | 3000 | demo runs against this; proxies `/api` and `/ws` to :8080 |
 
-### Resource limits (laptop-tuned; spec §11/§12 require these)
-| Service | Limit | Config |
+### Resource limits (tuned for a 7.7 GB laptop; spec §11/§12 require these)
+| Service | Config | Set in |
 |---|---|---|
-| Neo4j | 1.0 GB | `server.memory.heap.max_size=512m`, `pagecache.size=256m` |
-| MongoDB | 1.0 GB | `--wiredTigerCacheSizeGB 0.5` |
-| Redis | 768 MB | `maxmemory 512mb`, `maxmemory-policy noeviction` |
-| API | 1.0 GB | `-XX:MaxRAMPercentage=75` |
-| UI | 256 MB | static nginx serving a Vite build — no runtime JS engine |
+| Neo4j | `server.memory.heap.max_size=384m`, `pagecache.size=128m` | `start-native.ps1` → `neo4j.conf`, first run |
+| MongoDB | `--wiredTigerCacheSizeGB 0.25` | `start-native.ps1` |
+| Redis | `maxmemory 256mb`, `maxmemory-policy noeviction` | `start-native.ps1` → `redis.conf` |
+| API | `-Xmx384m` | `start-native.ps1` |
+| UI | one Node process serving the static build | `start-native.ps1` |
 
-**If Neo4j OOMs, lower the heap — never raise it** (spec §12).
+These are lower than the Docker-era limits (512m/256m, 0.5 GB, 512mb, 75% of
+1 GB) and were measured sufficient at 150 txn/s. **If Neo4j OOMs, lower the
+heap — never raise it** (spec §12).
 
 ### Redis persistence
 `appendonly yes`, `appendfsync everysec`, `save ""` (AOF only, no RDB).
@@ -84,12 +90,37 @@ under pressure — breaking at-least-once delivery. Every volatile key carries a
 explicit TTL (§4.1); memory is bounded by design, not by eviction. Under genuine
 pressure we want writes to fail loudly.
 
-### Connection strings (compose network)
+### Redis connections
+The API pools its Lettuce connections (`spring.data.redis.lettuce.pool`, max 16;
+needs `commons-pool2` on the classpath). **Do not remove the pool.** Every
+pipelined window update (§7 step 3) and every blocking stream read takes a
+dedicated connection; unpooled, that is a TCP connect and close per transaction,
+which exhausts Windows' ephemeral ports inside two minutes (§8 D-34).
+
+### Connection strings (defaults in `application.yml`; override by env var)
 ```
-REDIS_URL   redis://redis:6379
-MONGO_URI   mongodb://mongo:27017/sentinel?replicaSet=rs0&directConnection=true&w=majority
-NEO4J_URI   bolt://neo4j:7687   (neo4j / sentinel-dev)
+REDIS_URL   redis://localhost:6379
+MONGO_URI   mongodb://localhost:27017/sentinel?replicaSet=rs0&directConnection=true&w=majority
+NEO4J_URI   bolt://localhost:7687   (neo4j / sentinel-dev)
 ```
+
+### Running it
+```
+.\run                                # stop any previous run, start fresh on reseeded data, open the UI
+.\stop                               # stop everything
+```
+`run.cmd` is `start-native.ps1 -Fresh`: it stops what is running, starts the
+stores, runs `seed.mjs --wipe` *before* the API boots (so counters and the
+consumer group start from the seeded state), then starts the API and UI. The
+individual steps:
+```
+.\scripts\native\setup-native.ps1    # once: download toolchain, npm ci, build jar + UI
+.\scripts\native\start-native.ps1    # Redis, MongoDB, Neo4j, API, UI (-DbOnly, -Rebuild)
+node scripts\seed.mjs --wipe         # deterministic demo state
+.\scripts\smoke.ps1                  # graded path, end to end
+.\scripts\native\stop-native.ps1
+```
+Data lives in `%USERPROFILE%\SentinelNative\data`, logs in `...\logs`.
 
 ---
 
@@ -99,23 +130,29 @@ NEO4J_URI   bolt://neo4j:7687   (neo4j / sentinel-dev)
 sentinelstream/
   CLAUDE.md
   README.md
-  docker-compose.yml
   docs/
     NoSQL_Project.md          design spec (reference)
     evidence/                 explain() output, generated — §4.3
       explain-report.md
       *.json
-    screenshots/
+    Teacher_demo.md           presenter's guide and viva answers
+    presentation/             deck source: content .md, prompt, 6 diagrams, 13 screenshots
+      source/                 diagram HTML, rendered to the fig-*.png files
   api/                        Spring Boot
     src/main/java/.../
       generator/  consumer/  detect/  persist/  graph/  triage/  stats/  ws/  control/  admin/
       config/MongoIndexConfig.java      index registry, §4.3
       config/MongoValidatorConfig.java  JSON Schema, §4.2
   ui/                         React + Vite
+    src/
+      App.jsx  app-context.jsx  api.js  ws.js  theme.js  styles.css
+      views/                  LiveMonitor  Triage  Rings  Analytics  DataStores
+      components/             shared panels, case drawer, ring graph
   scripts/
     seed.mjs                  deterministic demo state
     explain-evidence.mjs      before/after harness
-    smoke.sh / smoke.ps1
+    smoke.ps1                 graded path, end to end
+    native/                   setup-native / start-native / stop-native (.ps1)
 ```
 
 ---
@@ -467,6 +504,7 @@ than left standing.)
 | Endpoint | Behaviour |
 |---|---|
 | `POST /api/control/inject/velocity` | one card, **12 txns in 20 s** (threshold is 5/60 s) |
+| `POST /api/control/inject/amount` | one card with ≥5 txns of history spends **3×–4.5× its typical ticket** (§8 D-35); `409` if no card has a baseline yet |
 | `POST /api/control/inject/travel` | Chennai → Delhi, **2 s** real gap → ~3,168,000 km/h (§8 D-21) |
 | `POST /api/control/inject/ring` | **6** cards onto one freshly-generated shared device + 2 IPs (`10.20.x.x`, §8 D-30 — not the seed script's dedicated `D-SEED-01`), staggered 2 s |
 | `POST /api/control/generator/pause` | pause benign traffic (added — deterministic demo) |
@@ -523,20 +561,67 @@ targets one card deliberately) produces a city change.
 `sentinel.generator.*` in `application.yml` is the authoritative source for
 these counts; this table exists so the reasoning survives a config-file skim.
 
+### Baseline traffic — amounts (§8 D-35)
+
+The third instance of the same failure class, on the third detector.
+`AMOUNT_ANOMALY` judges a card against **its own** last 20 amounts, but the
+generator drew every amount from the *merchant's category* — so one card paid
+₹400 at a pharmacy and ₹15,000 at a jeweller within the same minute. Measured
+live and reproduced in simulation: **4.9% of baseline transactions fired the
+rule** (10.6% while windows were filling) — about 7 LOW alerts per second
+against a design assumption of "alerts are ~1/s". The settlement tape was almost
+entirely flagged rows and the triage queue grew by ~1,000 a minute.
+
+**The fix has three parts:**
+
+1. **Each card has a spending profile**, fixed at pool-build time like its home
+   city: a *typical ticket* (0.8×–1.25× one category's typical ticket) and the
+   set of merchants whose category sells within 0.55×–1.8× of it. A benign
+   amount is uniform within **±40%** of the ticket (`amountSpread`). A uniform
+   bounded range cannot exceed its own mean + 3σ, so the steady-state organic
+   rate falls to ~0.02%.
+2. **A structural cap for the cases statistics leaves open.** `Card` remembers
+   its last 20 amounts and never emits a benign amount above
+   **mean + 2.5σ** (`amountCapSigma`) of *any* trailing window of ≥5 of them —
+   the detector fires at 3σ of the same amounts. The memory is primed from
+   `card:{c}:amts` on first use after boot, so the guarantee survives an API
+   restart, and the all-suffixes rule covers a `seed.mjs --wipe`, after which
+   Redis holds only the newest few.
+3. **A deliberate, controlled trickle.** About 1 benign transaction in 3,000
+   (`overspendRate`) is a genuine 3×–4.5× overspend: ~3 LOW alerts a minute, so
+   the fourth detector is visibly alive without burying the other three. The
+   same overspend is available on demand as `POST /api/control/inject/amount`.
+
+Injectors draw their amounts from the card's profile too, so an injected
+pattern scores exactly what the table above says (travel alone → 70, fan-out
+alone → 55) rather than picking up a stray +25.
+
 ---
 
 ## §6 API surface
 
 `/api/txns` · `/api/alerts` · `/api/cards` · `/api/rings` · `/api/stats` ·
-`/api/control` · `/api/admin`. Full triage and stats routes: see the implementation
-plan (`docs/PLAN.md` if exported, else the session's plan file) Parts 4–5, and
-`README.md` once written.
+`/api/control` · `/api/admin`. Triage and stats routes are specified in
+`docs/PLAN.md` Parts 2–3; the full list is in `README.md`.
+
+Read-only routes added for the UI (§8 D-36). None adds a Mongo index; each
+names the existing one it uses (§1 rule 6):
+
+| Route | Backed by |
+|---|---|
+| `GET /api/stats/throughput` | Redis `metrics:txn:{epochMin}` |
+| `GET /api/alerts/explain?status=&severity=` | `explain("executionStats")` of the queue read |
+| `GET /api/cards/blocked` | index #14, read in `cardId` order |
+| `GET /api/txns?cardId=&limit=` | index #2 with a card, #3 without |
+| `GET /api/rings/snapshots?limit=` | index #15 |
+| `GET /api/admin/redis-stats` | `XLEN`, `XPENDING`, `XINFO GROUPS`, `SCARD`, `DBSIZE`, `INFO memory` |
+| `GET /api/admin/neo4j-stats` | node and relationship counts |
 
 **STOMP** — endpoint `/ws` (SockJS fallback), the three live channels of spec §5:
 
 | Topic | Payload | Rate |
 |---|---|---|
-| `/topic/txn` | transaction summary | **sampled to ~8/s**; flagged always pass (§8 D-05) |
+| `/topic/txn` | transaction summary | **sampled to ~8/s**; flagged and declined always pass (§8 D-05, D-38) |
 | `/topic/alerts` | full alert document | unsampled |
 | `/topic/rings` | ring snapshot | on discovery |
 
@@ -646,6 +731,11 @@ is the only step that can take tens of milliseconds.
 | D-31 | 2026-09-14 | Documented operational guidance: prefer the seeded ring (`C-9001`, `GET /api/rings/C-9001`) for the cleanest demo; a *live* injection onto random live-pool cards may surface a wider, legitimately-connected web than just the 6 injected cards | Observed live, independent of the D-30 bug: D-19's own safety design caps every device/IP at exactly 2 organic cards, which makes the graph densely but uniformly interconnected at scale (~9,000 nodes by the time this was tested) — a bounded 6-hop traversal from a *live-pool* seed card can legitimately chain through several such ambient 2-card entities and return more than the 6 cards actually injected. This is `RING_FOR_CARD` behaving exactly as specified (§4.4's own bound rationale already anticipated *some* growth in usefulness-vs-noise trade-off at depth), not a bug — but it means the crisp "exactly 6 cards" result is a property of the *isolated* seeded ring, not guaranteed for every live injection once the graph has grown large. |
 | D-32 | 2026-09-14 | `StreamConsumerConfig` now self-heals from a missing `fraud-detectors` consumer group: (1) `reclaimStale()`'s catch clause walks the exception's full cause chain (not just its top-level message) for `NOGROUP` and calls `ensureGroupExists()` to recreate it; (2) the container's read subscription is built explicitly via `StreamReadRequest.builder(...).cancelOnError(t -> false)` instead of the convenience `container.receive(...)`, which cancels the whole subscription permanently on its *first* read error of any kind | Caught live: `scripts/seed.mjs --wipe`'s `FLUSHDB` deletes `txn:stream` and its consumer group while the API's subscription (established once at boot) is still actively reading from it. The very next poll throws `NOGROUP`, wrapped several layers deep by the Lettuce/Netty stack — the top-level exception message is just `"Error in execution"`, so a first-pass fix that checked `e.getMessage().contains("NOGROUP")` silently never matched and never fired. Worse, `container.receive(...)`'s default `StreamReadRequest` cancels its subscription on that same first error — so even after fixing the cause-chain check and recreating the group, `XINFO GROUPS` kept showing `consumers=0` and no further `"Processed"` logs, because the read task itself had already died, not merely errored. Confirmed fixed by running the exact failing scenario twice: `docker logs` shows the `NOGROUP` hit, `"Consumer group 'fraud-detectors' missing ... recreating"` at the next 30s reclaim cycle, and `"Processed"` counts incrementing continuously through that moment with no gap (8000→9000→...→17000 spanning the recreation). No restart of `sentinel-api` required. |
 | D-33 | 2026-09-14 | Slice 14 STOMP wiring, three decisions made together: (1) `AlertWriter.write(...)` now returns the persisted `Document`, not just its `alertId` string, so step 9 can PUBLISH the full document `/topic/alerts` needs (§6: "full alert document, unsampled") without a second Mongo round trip; (2) that publish serialises the `Document` with the app's own Spring-managed Jackson `ObjectMapper` (injected), not BSON's `Document.toJson()` -- the two produce different date shapes (`{"$date":"..."}` extended-JSON vs a plain ISO string), and Jackson's output is what already matches `GET /api/alerts/{alertId}`'s REST response, so the live and polled shapes agree; (3) `/topic/txn` is populated directly from `TransactionConsumer` via `TxnBroadcaster`, not through a new Redis Pub/Sub channel like `alerts:live`/`rings:live` -- it isn't in the §4.1 key registry, and the ~8 msg/s sampling decision (§8 D-05) is inherently a single-process, in-memory rate gate that a Redis hop would only add latency to, with exactly one API instance in this design | (1)-(2) caught before shipping, by tracing the data rather than live: a first draft hand-built a small summary payload for `/topic/alerts` (mirroring the old `alerts:live` shape from before STOMP existed) and used `Document.toJson()` when switched to the full document, and a raw STOMP test client (a small `ws`-based script, not a browser) showed `"ts": {"$date": "..."}` where the REST API's `ts` field is a plain string -- inconsistent shapes for the same alert depending on whether the UI got it live or via poll would have been a real bug, just a quiet one. (3) is a design choice recorded so a future slice doesn't "fix" the asymmetry with `alerts:live` by adding a `txn:live` channel that isn't needed. |
+| D-34 | 2026-10-11 | **Docker removed; the stack runs natively on Windows** from portable builds (`scripts/native/`). Redis is the `redis-windows` community build of **7.2.16**. Memory limits lowered (§2). The API now **pools its Lettuce connections** (`commons-pool2`, max 16) | Moved to a 7.7 GB laptop with ~1.3 GB free, where Docker Desktop's own overhead did not fit. Running natively exposed a defect Linux had hidden: unpooled, Lettuce opens a dedicated TCP connection for every pipeline and blocking read. Redis counted **101,981 connections in 15 minutes**; Windows' 16,384 ephemeral ports with a 120 s `TIME_WAIT` ran out, ~15% of transactions failed at §7 step 3 with "Unable to connect to Redis", and `seed.mjs` hung on connect. With the pool: 1 new connection in 30 s, zero errors, 148–150 txn/s measured. A failed transaction also showed that §7's guarantee has a gap, recorded here rather than changed (§7 is frozen): step 2 sets the idempotency key *before* the work, so a transaction that fails after step 2 is redelivered, seen as already processed, and acknowledged without ever being persisted — at-most-once for that case, not effectively-once. |
+| D-35 | 2026-10-11 | Benign amounts come from a **per-card spending profile** with a structural cap, plus a deliberate ~1-in-3,000 overspend; new `POST /api/control/inject/amount`. See §5 "Baseline traffic — amounts" | Same bug class as D-04 and D-19, on `AMOUNT_ANOMALY`: amounts drawn from the merchant's category made 4.9% of baseline traffic fire the rule (~7 LOW alerts/s). Never noticed before because no earlier slice was looked at in a browser. After the fix: 7 organic alerts in 40,377 transactions. The fourth detector also had no on-demand trigger, so it could not be demonstrated deliberately; now it can. |
+| D-36 | 2026-10-11 | **UI rewritten: light theme, five views behind a sidebar** (Live monitor, Triage, Fraud rings, Analytics, Data stores), superseding the dark single-page layout of spec §7 and the tab arrangement of D-16. Seven read-only routes added for it (§6). `CardBlockService` now also sets `Card.blocked` in Neo4j | Requested: a polished, mostly light, interactive UI that demonstrates every planned feature. Several built features had no UI at all (generator pause, bulk dismiss, assign, blocklist with unblock, ring history, `/topic/rings`, store metrics) and there was no throughput figure. The Triage view shows the live `explain()` for the current filter, so index #10 is demonstrated rather than asserted. `Card.blocked` is listed in §4.4 and returned by `RING_FOR_CARD`, but only the seed script ever wrote it, so a card blocked from the UI still rendered unblocked in the graph. Verified in headless Edge over the DevTools protocol — the first time this UI has been exercised in a real browser. |
+| D-37 | 2026-10-11 | Three smaller fixes found while testing D-34–D-36: (1) the stream poll error handler recreates a missing consumer group itself and backs off 1 s on any other error; (2) the travel injector holds its card out of benign rotation for a full velocity window (60 s), not 20 s; (3) `RingQueryService` stops its clock after the record is read, not after `run()` | (1) D-32 left recreation to the 30 s reclaim task; with `cancelOnError` off the poll loop retried with no delay in between and wrote **73,934 warning lines** during one `seed.mjs --wipe`. (2) Released after 20 s, the card's next organic purchase at home was compared with the Delhi leg and raised a second `IMPOSSIBLE_TRAVEL` alert (e.g. "Delhi → Kolkata in 21 s") for every injection. (3) The Neo4j driver streams lazily, so `queryMs` — shown in the UI and stored in `ring_snapshots` — read ~1 ms whatever the ring's size. |
+| D-38 | 2026-10-13 | Three fixes found while capturing demo evidence: (1) `TxnBroadcaster` lets **declined** rows bypass the `/topic/txn` sampler, as flagged rows already did, and the tape keeps flagged and declined rows in a buffer of their own; (2) `RingQueryTrigger` runs the ring query **two projector flush intervals (1 s) after** fan-out fires, not immediately; (3) `explain-evidence.mjs` now captures probe **P6** (Neo4j seed lookup) instead of reporting it as deferred | (1) A blocked card's declined payments went through the ~8/s sampler like ordinary traffic, so about 1 in 19 reached the tape, and the 200-row tape buffer pushed even those out within ~25 s. The demo's closing step (block a card, watch it decline) therefore almost never showed. (2) Step 7 only queues the transaction's graph edge; asked at once, Neo4j did not yet link the card to the device that had just tripped fan-out, so every saved snapshot for a live injection omitted the injected device. After the fix the four snapshots of one injection show that device with 3, 4, 5 and 6 cards. (3) The ring query has existed since Slice 12; the probe uses `PROFILE` with and without a seekable predicate rather than dropping the constraint, which would let the live projector create duplicates: 8,013 db hits by label scan against 2 by index seek. |
 
 ---
 

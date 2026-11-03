@@ -1,0 +1,36 @@
+/* Shared styling for the presentation diagrams. Each diagram is a fixed
+   1600x900 page rendered to PNG by headless Edge. One colour per store, used
+   the same way in every figure: Redis red, MongoDB green, Neo4j blue. */
+html, body { margin: 0; width: 1600px; height: 900px; overflow: hidden; background: #ffffff;
+  font-family: 'Segoe UI', system-ui, sans-serif; color: #16181d; }
+* { box-sizing: border-box; }
+
+.box { position: absolute; padding: 14px 16px; border: 1.5px solid #c9c8c0; border-radius: 10px; background: #ffffff; }
+.box h3 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.2; }
+.box h4 { margin: 0; font-size: 16.5px; font-weight: 600; line-height: 1.25; }
+.box .sub { margin: 2px 0 0; font-size: 14px; color: #6f737c; }
+.box p { margin: 6px 0 0; font-size: 15px; line-height: 1.38; color: #4b4f58; }
+.box ul, .box ol { margin: 8px 0 0; padding-left: 20px; font-size: 15px; line-height: 1.45; color: #4b4f58; }
+.mono { font-family: Consolas, 'Cascadia Mono', monospace; font-size: 14px; color: #16181d; }
+
+.redis { border-color: #d14a3a; background: #fdf2f0; }
+.redis h3, .redis h4 { color: #a83224; }
+.mongo { border-color: #1f8f4e; background: #eef8f1; }
+.mongo h3, .mongo h4 { color: #176b34; }
+.neo { border-color: #2563c9; background: #edf3fd; }
+.neo h3, .neo h4 { color: #1d51a8; }
+.app { border-color: #6f737c; background: #f6f6f3; }
+.inner { background: #ffffff; border-width: 1.2px; }
+
+.tag { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+.tag.redis { background: #f9d9d4; color: #8a2619; border: 0; }
+.tag.mongo { background: #cfecd9; color: #12592b; border: 0; }
+.tag.neo { background: #d3e2fa; color: #17438c; border: 0; }
+.tag.app { background: #e6e5df; color: #33363d; border: 0; }
+
+svg.wires { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; pointer-events: none; }
+svg.wires path, svg.wires line { fill: none; stroke: #4b4f58; stroke-width: 2; }
+.lbl { position: absolute; padding: 1px 5px; background: #ffffff; font-size: 13.5px; color: #33363d; white-space: nowrap; transform: translateX(-50%); }
+.note { position: absolute; font-size: 15px; color: #4b4f58; line-height: 1.4; }
+.heading { position: absolute; font-size: 21px; font-weight: 600; }
+.heading small { display: block; margin-top: 2px; font-size: 14.5px; font-weight: 400; color: #6f737c; }

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Architecture</title><link rel="stylesheet" href="diagram.css"></head>
+<body>
+
+<div class="box app" style="left:40px;top:300px;width:210px;height:250px">
+  <h3>Transaction generator</h3>
+  <p>Synthetic card traffic, about 150 a second</p>
+  <p>4,000 cards, 2,200 devices, 3,200 IPs, 12 cities</p>
+  <p>4 fraud patterns injectable on demand</p>
+</div>
+
+<div class="box redis" style="left:360px;top:60px;width:300px;height:740px">
+  <h3>Redis 7.2</h3><p class="sub">Ingestion and sliding-window state</p>
+</div>
+<div class="box redis inner" style="left:376px;top:130px;width:268px;height:120px">
+  <h4>txn:stream</h4><p>Stream, capped at 100,000 entries. Read by consumer group <span class="mono" style="white-space:nowrap">fraud-detectors</span></p>
+</div>
+<div class="box redis inner" style="left:376px;top:272px;width:268px;height:192px">
+  <h4>Sliding windows</h4>
+  <p class="mono">card:{id}:txns :amts :geo<br>device:{id}:cards<br>ip:{ip}:cards</p>
+  <p>Sorted sets and GEO. Every key has a TTL</p>
+</div>
+<div class="box redis inner" style="left:376px;top:480px;width:268px;height:100px">
+  <h4>blocklist:cards</h4><p>Set, no TTL. Written by analysts</p>
+</div>
+<div class="box redis inner" style="left:376px;top:610px;width:268px;height:110px">
+  <h4>Pub/Sub</h4><p class="mono">alerts:live · rings:live</p>
+</div>
+
+<div class="box app" style="left:790px;top:60px;width:300px;height:740px">
+  <h3>Spring Boot API</h3><p class="sub">Java 21, port 8080</p>
+</div>
+<div class="box app inner" style="left:806px;top:130px;width:268px;height:420px">
+  <h4>Stream consumer</h4>
+  <ol>
+    <li>Blocklist check</li>
+    <li>Idempotency guard</li>
+    <li>Update windows</li>
+    <li>Four detectors, score 0 to 100</li>
+    <li>Save transaction (buffered)</li>
+    <li>Save alert (immediate)</li>
+    <li>Queue graph edges</li>
+    <li>Ring query if fan-out fired</li>
+    <li>Publish</li>
+    <li>Acknowledge, always last</li>
+  </ol>
+</div>
+<div class="box app inner" style="left:806px;top:580px;width:268px;height:190px">
+  <h4>REST and WebSocket</h4>
+  <p class="mono">/api/*  ·  /ws (STOMP)</p>
+  <p>Triage CRUD, aggregations, ring queries, store metrics</p>
+</div>
+
+<div class="box mongo" style="left:1220px;top:60px;width:340px;height:280px">
+  <h3>MongoDB 7.0</h3><p class="sub">Replica set rs0, the system of record</p>
+  <ul>
+    <li><span class="mono">transactions</span> (kept 24 h)</li>
+    <li><span class="mono">alerts</span></li>
+    <li><span class="mono">alerts_archive</span> (kept 7 d)</li>
+    <li><span class="mono">blocked_cards</span>, <span class="mono">ring_snapshots</span></li>
+  </ul>
+  <p>16 indexes, JSON Schema validators</p>
+</div>
+<div class="box neo" style="left:1220px;top:370px;width:340px;height:200px">
+  <h3>Neo4j 5.20</h3><p class="sub">Entity graph</p>
+  <p class="mono">(:Card)-[:USED_DEVICE]->(:Device)<br>(:Card)-[:FROM_IP]->(:Ip)</p>
+  <p>Fraud rings by variable-length traversal</p>
+</div>
+<div class="box app" style="left:1220px;top:600px;width:340px;height:200px">
+  <h3>React dashboard</h3><p class="sub">Port 3000</p>
+  <p>Live monitor, Triage, Fraud rings, Analytics, Data stores</p>
+</div>
+
+<svg class="wires" viewBox="0 0 1600 900">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" style="fill:#4b4f58;stroke:none"/>
+    </marker>
+  </defs>
+  <path d="M250,420 H313 V190 H376" marker-end="url(#a)"/>
+  <path d="M644,190 H806" marker-end="url(#a)"/>
+  <path d="M806,365 H644" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M806,530 H644" marker-end="url(#a)"/>
+  <path d="M806,665 H644" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M1074,200 H1220" marker-end="url(#a)"/>
+  <path d="M1074,470 H1220" marker-end="url(#a)"/>
+  <path d="M1074,700 H1220" marker-start="url(#a)" marker-end="url(#a)"/>
+</svg>
+
+<span class="lbl" style="left:313px;top:292px">XADD</span>
+<span class="lbl" style="left:725px;top:166px">XREADGROUP</span>
+<span class="lbl" style="left:725px;top:342px;font-size:12.5px">ZADD · ZCARD · GEODIST</span>
+<span class="lbl" style="left:725px;top:506px">SISMEMBER</span>
+<span class="lbl" style="left:725px;top:641px">PUBLISH · SUBSCRIBE</span>
+<span class="lbl" style="left:1147px;top:176px">bulk upsert · insert</span>
+<span class="lbl" style="left:1147px;top:446px">MERGE · ring query</span>
+<span class="lbl" style="left:1147px;top:676px">REST · STOMP</span>
+
+<div class="note" style="left:40px;top:830px;width:1520px">
+  The generator runs inside the API process. Arrows show data flow; the label on each is the command that carries it.
+</div>
+</body>
+</html>

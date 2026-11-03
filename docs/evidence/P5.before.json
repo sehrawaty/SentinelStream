@@ -8,9 +8,8 @@
         "$eq": "HIGH"
       }
     },
-    "queryHash": "5CA51C1B",
-    "planCacheKey": "4EF7E80E",
-    "optimizationTimeMillis": 0,
+    "queryHash": "BE47B827",
+    "planCacheKey": "05925C6E",
     "maxIndexedOrSolutionsReached": false,
     "maxIndexedAndSolutionsReached": false,
     "maxScansToExplodeReached": false,
@@ -35,27 +34,27 @@
   },
   "executionStats": {
     "executionSuccess": true,
-    "nReturned": 10,
-    "executionTimeMillis": 2,
+    "nReturned": 203,
+    "executionTimeMillis": 1,
     "totalKeysExamined": 0,
-    "totalDocsExamined": 4584,
+    "totalDocsExamined": 2057,
     "executionStages": {
       "stage": "SORT",
-      "nReturned": 10,
+      "nReturned": 203,
       "executionTimeMillisEstimate": 0,
-      "works": 4596,
-      "advanced": 10,
-      "needTime": 4585,
+      "works": 2262,
+      "advanced": 203,
+      "needTime": 2058,
       "needYield": 0,
-      "saveState": 4,
-      "restoreState": 4,
+      "saveState": 2,
+      "restoreState": 2,
       "isEOF": 1,
       "sortPattern": {
         "ts": -1
       },
       "memLimit": 104857600,
       "type": "simple",
-      "totalDataSizeSorted": 5285,
+      "totalDataSizeSorted": 146405,
       "usedDisk": false,
       "spills": 0,
       "spilledDataStorageSize": 0,
@@ -66,17 +65,17 @@
             "$eq": "HIGH"
           }
         },
-        "nReturned": 10,
+        "nReturned": 203,
         "executionTimeMillisEstimate": 0,
-        "works": 4585,
-        "advanced": 10,
-        "needTime": 4574,
+        "works": 2058,
+        "advanced": 203,
+        "needTime": 1854,
         "needYield": 0,
-        "saveState": 4,
-        "restoreState": 4,
+        "saveState": 2,
+        "restoreState": 2,
         "isEOF": 1,
         "direction": "forward",
-        "docsExamined": 4584
+        "docsExamined": 2057
       }
     }
   },
@@ -91,10 +90,10 @@
     "$db": "sentinel"
   },
   "serverInfo": {
-    "host": "0f77bcd46056",
+    "host": "Yash-Victus",
     "port": 27017,
-    "version": "7.0.41",
-    "gitVersion": "ce905e55f7dd2a19fcb437f709682c442abb12c6"
+    "version": "7.0.14",
+    "gitVersion": "ce59cfc6a3c5e5c067dca0d30697edd68d4f5188"
   },
   "serverParameters": {
     "internalQueryFacetBufferSizeBytes": 104857600,
@@ -105,12 +104,12 @@
     "internalQueryProhibitBlockingMergeOnMongoS": 0,
     "internalQueryMaxAddToSetBytes": 104857600,
     "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
-    "internalQueryFrameworkControl": "forceClassicEngine"
+    "internalQueryFrameworkControl": "trySbeRestricted"
   },
   "ok": 1,
   "$clusterTime": {
     "clusterTime": {
-      "$timestamp": "7685336877993296043"
+      "$timestamp": "7696201032128266334"
     },
     "signature": {
       "hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -118,6 +117,6 @@
     }
   },
   "operationTime": {
-    "$timestamp": "7685336877993296043"
+    "$timestamp": "7696201032128266334"
   }
 }
