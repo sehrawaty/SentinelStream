@@ -91,7 +91,7 @@ public class StreamConsumerConfig {
                 .consumer(Consumer.from(streamProps.getConsumerGroup(), consumerName))
                 .autoAcknowledge(false)
                 .cancelOnError(t -> false)
-                .errorHandler(t -> log.warn("Stream poll error (subscription stays alive): {}", t.getMessage()))
+                .errorHandler(this::onPollError)
                 .build();
 
         subscription = container.register(request, processor::process);
@@ -99,6 +99,33 @@ public class StreamConsumerConfig {
         container.start();
         log.info("Consumer '{}' subscribed to '{}' as group '{}'",
             consumerName, streamProps.getKey(), streamProps.getConsumerGroup());
+    }
+
+    /**
+     * Runs on the poll thread. With cancelOnError off, a failing read retries
+     * immediately, so an unhandled error here is a tight loop: one `seed.mjs
+     * --wipe` logged ~74,000 of these lines in the seconds before the 30s
+     * reclaim task recreated the group. A missing group is therefore recreated
+     * right here, and every other error backs off before the next poll.
+     */
+    private void onPollError(Throwable t) {
+        if (containsNoGroup(t)) {
+            log.warn("Consumer group '{}' missing on '{}' (stream was likely flushed externally) -- recreating",
+                streamProps.getConsumerGroup(), streamProps.getKey());
+            try {
+                ensureGroupExists();
+                return;
+            } catch (Exception e) {
+                log.warn("Could not recreate consumer group: {}", e.getMessage());
+            }
+        } else {
+            log.warn("Stream poll error (subscription stays alive): {}", t.getMessage());
+        }
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @PreDestroy

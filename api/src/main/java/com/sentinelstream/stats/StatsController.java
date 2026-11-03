@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /** PLAN.md Part 3 -- aggregation pipelines A-D. Pipeline E lives at GET /api/alerts/{id} (TriageService). */
 @RestController
@@ -35,6 +36,12 @@ public class StatsController {
     public List<Document> topCards(@RequestParam(defaultValue = "10") int limit,
                                     @RequestParam(defaultValue = "24") int hours) {
         return stats.topCards(limit, hours);
+    }
+
+    /** Live measured ingest rate, from Redis's per-minute counters -- not a Mongo query. */
+    @GetMapping("/api/stats/throughput")
+    public Map<String, Object> throughput() {
+        return stats.throughput();
     }
 
     /** D -- the whole KPI strip, one round trip. Polled every 3s by the UI. */

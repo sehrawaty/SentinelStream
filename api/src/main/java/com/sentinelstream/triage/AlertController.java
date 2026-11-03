@@ -36,6 +36,13 @@ public class AlertController {
         return triage.list(status, severity, cardId, rule, from, to, page, size);
     }
 
+    @GetMapping("/explain")
+    public Map<String, Object> explain(@RequestParam(required = false) String status,
+                                        @RequestParam(required = false) String severity,
+                                        @RequestParam(defaultValue = "20") int size) {
+        return triage.explainQueue(status, severity, size);
+    }
+
     @GetMapping("/{alertId}")
     public Document detail(@PathVariable String alertId) {
         return triage.detail(alertId);

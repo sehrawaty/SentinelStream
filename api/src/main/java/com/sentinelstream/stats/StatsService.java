@@ -3,13 +3,16 @@ package com.sentinelstream.stats;
 import com.mongodb.client.MongoCollection;
 import org.bson.Document;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * PLAN.md Part 3 -- pipelines A-D (E lives in TriageService.detail(), the
@@ -20,9 +23,39 @@ import java.util.List;
 public class StatsService {
 
     private final MongoTemplate mongoTemplate;
+    private final StringRedisTemplate redis;
 
-    public StatsService(MongoTemplate mongoTemplate) {
+    public StatsService(MongoTemplate mongoTemplate, StringRedisTemplate redis) {
         this.mongoTemplate = mongoTemplate;
+        this.redis = redis;
+    }
+
+    /**
+     * CLAUDE.md §4.1 `metrics:txn:{epochMin}` -- the live measured rate (§8
+     * D-01), read straight from the per-minute INCR counters step 3 writes.
+     * Averaged over the previous full minute plus the elapsed part of the
+     * current one, so the figure doesn't jump at each minute boundary.
+     */
+    public Map<String, Object> throughput() {
+        long now = System.currentTimeMillis();
+        long minute = now / 60000;
+        List<String> values = redis.opsForValue().multiGet(
+            List.of("metrics:txn:" + minute, "metrics:txn:" + (minute - 1)));
+        long current = parseCount(values, 0);
+        long previous = parseCount(values, 1);
+        double elapsedSec = (now % 60000) / 1000.0;
+        double windowSec = previous > 0 ? 60 + elapsedSec : Math.max(elapsedSec, 1);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("txnPerSec", Math.round((current + previous) / windowSec * 10) / 10.0);
+        body.put("currentMinute", current);
+        body.put("previousMinute", previous);
+        return body;
+    }
+
+    private static long parseCount(List<String> values, int i) {
+        String v = values == null || values.size() <= i ? null : values.get(i);
+        return v == null ? 0 : Long.parseLong(v);
     }
 
     private MongoCollection<Document> transactions() {

@@ -4,10 +4,8 @@
 // (needs `npm install` once in this directory). Writes one before/after JSON
 // pair per probe under docs/evidence/, plus docs/evidence/explain-report.md.
 //
-// P6 (Neo4j RING_FOR_CARD PROFILE) is deferred until Slice 12, when the ring
-// query actually exists — this script only touches MongoDB. Running it again
-// after Slice 12 lands should append/replace the P6 row by hand, or a Neo4j
-// equivalent script can be added then.
+// P6 is the Neo4j counterpart: a PROFILE of RING_FOR_CARD's seed lookup with
+// and without the index the uniqueness constraint provides.
 //
 // The script leaves the database whole: each probe drops its target index,
 // captures BEFORE, recreates the *exact* index it dropped (key + options
@@ -17,6 +15,7 @@
 // script touched is back exactly as it was.
 
 import { MongoClient } from "mongodb";
+import neo4j from "neo4j-driver";
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,6 +24,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EVIDENCE_DIR = path.join(__dirname, "..", "docs", "evidence");
 const MONGO_URI = process.env.MONGO_URI
   ?? "mongodb://localhost:27017/sentinel?replicaSet=rs0&directConnection=true";
+const NEO4J_URI = process.env.NEO4J_URI ?? "bolt://localhost:7687";
+const NEO4J_USER = process.env.NEO4J_USER ?? "neo4j";
+const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD ?? "sentinel-dev";
 
 async function main() {
   await mkdir(EVIDENCE_DIR, { recursive: true });
@@ -42,14 +44,12 @@ async function main() {
     indexName: "status_1_severity_1_ts_-1",
     expected: "COLLSCAN + in-memory SORT -> IXSCAN, no SORT stage",
     run: (coll) => coll.find({ status: "NEW", severity: "HIGH" }).sort({ ts: -1 }),
-    note: "Without index #10 the planner did not fall back to a full COLLSCAN -- " +
-          "it found index #8 ({severity,ts}) still applicable and used that instead, " +
-          "adding a FETCH-stage filter on status. #10 removes that extra filter by " +
-          "embedding status directly in the index seek. At this data volume (a " +
-          "handful of HIGH alerts) the docsExamined delta is small; the meaningful " +
-          "evidence is the winning plan's index name changing from the 2-field " +
-          "fallback to the exact 3-field match -- at larger HIGH-severity volumes " +
-          "the avoided FETCH-filter would show as a real docsExamined gap too.",
+    note: "Without index #10 the planner does not fall back to a full COLLSCAN -- " +
+          "it finds index #8 ({severity,ts}) still applicable and uses that instead, " +
+          "fetching every HIGH alert and filtering on status afterwards. #10 puts " +
+          "status in the index seek itself, so documents examined equals documents " +
+          "returned. The evidence is both the docsExamined gap and the winning " +
+          "plan's index changing from the 2-field fallback to the exact 3-field match.",
   }));
 
   results.push(await runProbe(db, {
@@ -113,16 +113,49 @@ async function main() {
     skippedIndexCycle: true,
   });
 
-  results.push({
-    id: "P6",
-    label: "Neo4j RING_FOR_CARD seed lookup -- PROFILE, NodeByLabelScan -> NodeUniqueIndexSeek",
-    deferred: true,
-    reason: "Ring query does not exist until Slice 12 -- see CLAUDE.md build order.",
-  });
+  results.push(await profileNeo4jSeedLookup());
 
   await writeReport(results);
   await client.close();
   console.log(`\nDone. See ${path.relative(process.cwd(), EVIDENCE_DIR)}/explain-report.md`);
+}
+
+// P6 -- the Neo4j counterpart to COLLSCAN -> IXSCAN: how RING_FOR_CARD finds
+// its starting card. Dropping the uniqueness constraint to get a "before"
+// would let the live projector MERGE duplicates, so the unindexed plan is
+// obtained instead by wrapping the property in an expression the planner
+// cannot seek on. Nothing in the graph is changed.
+async function profileNeo4jSeedLookup() {
+  const label = "Neo4j RING_FOR_CARD seed lookup -- PROFILE of MATCH (c:Card {cardId})";
+  console.log(`\nP6: ${label}`);
+  const driver = neo4j.driver(NEO4J_URI, neo4j.auth.basic(NEO4J_USER, NEO4J_PASSWORD));
+  const session = driver.session();
+  try {
+    const scan = await session.run("PROFILE MATCH (c:Card) WHERE toUpper(c.cardId) = 'C-9001' RETURN c.cardId");
+    const seek = await session.run("PROFILE MATCH (c:Card {cardId: 'C-9001'}) RETURN c.cardId");
+    const before = planMetrics(scan.summary.profile);
+    const after = planMetrics(seek.summary.profile);
+    console.log(`  BEFORE: ${before.stage} dbHits=${before.dbHits}`);
+    console.log(`  AFTER:  ${after.stage} dbHits=${after.dbHits}`);
+    return { id: "P6", label, graph: true, before, after };
+  } catch (e) {
+    console.warn(`  ! Neo4j probe not captured: ${e.message}`);
+    return { id: "P6", label, deferred: true, reason: `Not captured -- Neo4j unreachable (${e.code ?? e.message}).` };
+  } finally {
+    await session.close();
+    await driver.close();
+  }
+}
+
+function planMetrics(profile) {
+  const operators = [];
+  let dbHits = 0;
+  (function walk(node) {
+    operators.push(node.operatorType.replace(/@neo4j$/, ""));
+    dbHits += typeof node.dbHits === "number" ? node.dbHits : node.dbHits.toNumber();
+    node.children.forEach(walk);
+  })(profile);
+  return { stage: operators.join(" <- "), dbHits };
 }
 
 async function runProbe(db, spec) {
@@ -212,6 +245,10 @@ async function writeReport(results) {
     if (r.deferred) {
       return `| ${r.id} | ${r.label} | — | — | — | *deferred* | — | — | ${r.reason} |`;
     }
+    if (r.graph) {
+      const ratio = r.after.dbHits > 0 ? Math.round(r.before.dbHits / r.after.dbHits) : null;
+      return `| ${r.id} | ${r.label} | ${r.before.stage} | ${r.before.dbHits} db hits | - | ${r.after.stage} | ${r.after.dbHits} db hits | - | ${ratio ? `${ratio}x fewer db hits` : "-"} |`;
+    }
     const b = r.before, a = r.after;
     const improved = !r.skippedIndexCycle && b.ms !== null && a.ms !== null;
     return `| ${r.id} | ${r.label} | ${b.stage} | ${b.docsExamined ?? "-"} | ${b.ms ?? "-"} | ${a.stage} | ${a.docsExamined ?? "-"} | ${a.ms ?? "-"} | ${improved ? describeImprovement(b, a) : (r.skippedIndexCycle ? "n/a -- no index applies" : "-")} |`;
@@ -224,10 +261,9 @@ async function writeReport(results) {
 
   const md = `# explain() evidence — index registry (CLAUDE.md §4.3)
 
-Generated by \`scripts/explain-evidence.mjs\` against the live database at the
-time of the run (organic traffic through Slice 7; re-run after Slice 10's
-seed script lands for the polished, reproducible-volume version referenced
-in the report). Each probe drops its target index, captures the *before*
+Generated by \`scripts/explain-evidence.mjs\` on ${new Date().toISOString().slice(0, 10)} against the live
+databases (the \`seed.mjs\` demo state plus whatever live traffic had
+accumulated). Each MongoDB probe drops its target index, captures the *before*
 plan, recreates the identical index (key + options read back from the live
 index definition, not retyped by hand), then captures the *after* plan.
 
@@ -244,13 +280,15 @@ bound and could not be trimmed by score at all. \`GEOADD\` maintains a
 geohash-scored sorted set, making \`GEODIST\` O(1). The data structure choice
 *is* the index here.
 
-## Neo4j — deferred to Slice 12
+## Neo4j — the seed lookup (probe P6)
 
 The four uniqueness constraints (CLAUDE.md §4.4) each create a backing range
 index, making \`RING_FOR_CARD\`'s seed lookup (\`MATCH (seed:Card {cardId:
-$x})\`) an index seek rather than a label scan. Captured with \`PROFILE\`
-once the ring query exists: \`NodeByLabelScan\` -> \`NodeUniqueIndexSeek\`,
-recording the \`db hits\` delta -- the Neo4j counterpart to COLLSCAN -> IXSCAN.
+$x})\`) an index seek rather than a label scan -- the Neo4j counterpart to
+COLLSCAN -> IXSCAN, measured in \`db hits\`. The "before" plan is not obtained
+by dropping the constraint (the live projector would then MERGE duplicates):
+it is the same lookup with the property wrapped in an expression the planner
+cannot seek on, which forces the label scan the index otherwise avoids.
 `;
 
   await writeFile(path.join(EVIDENCE_DIR, "explain-report.md"), md);

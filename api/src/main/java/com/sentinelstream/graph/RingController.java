@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +46,19 @@ public class RingController {
             .sort(new Document("discoveredAt", -1))
             .limit(1)
             .first();
+    }
+
+    /** Ring history, newest first -- index #15 ({discoveredAt: -1}). */
+    @GetMapping("/api/rings/snapshots")
+    public List<Document> snapshots(@RequestParam(defaultValue = "12") int limit) {
+        List<Document> out = new ArrayList<>();
+        mongoTemplate.getCollection("ring_snapshots")
+            .find()
+            .projection(new Document("_id", 0).append("edges", 0))
+            .sort(new Document("discoveredAt", -1))
+            .limit(Math.min(limit, 50))
+            .into(out);
+        return out;
     }
 
     /** ALL_RINGS -- global sweep, powers the cuttable "all rings" panel. */

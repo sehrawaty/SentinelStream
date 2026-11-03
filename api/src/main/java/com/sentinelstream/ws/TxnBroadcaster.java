@@ -35,7 +35,11 @@ public class TxnBroadcaster {
 
     public void maybePublish(Map<String, String> v, boolean flagged, boolean declined) {
         long now = System.currentTimeMillis();
-        if (!flagged) {
+        // Declined rows bypass the sampler as well as flagged ones (§8 D-38):
+        // they only exist for blocked cards, so they are rare, and the tape
+        // showing a blocked card's next payment struck through is the visible
+        // end of the block-card write. Sampled, about 1 in 19 got through.
+        if (!flagged && !declined) {
             long prev = lastSentAt.get();
             if (now - prev < MIN_INTERVAL_MS || !lastSentAt.compareAndSet(prev, now)) {
                 return; // sampled out -- not this row's turn

@@ -16,6 +16,9 @@ public class GeneratorProperties {
     private int minHomeIpsPerCard = 1;
     private int maxHomeIpsPerCard = 2;
     private long minTxnGapMs = 20_000;
+    private double amountSpread = 0.4;
+    private double amountCapSigma = 2.5;
+    private double overspendRate = 1.0 / 3000;
     private long seed = 1590810094L;
 
     public int getRatePerSecond() { return ratePerSecond; }
@@ -38,6 +41,12 @@ public class GeneratorProperties {
     public void setMaxHomeIpsPerCard(int v) { this.maxHomeIpsPerCard = v; }
     public long getMinTxnGapMs() { return minTxnGapMs; }
     public void setMinTxnGapMs(long v) { this.minTxnGapMs = v; }
+    public double getAmountSpread() { return amountSpread; }
+    public void setAmountSpread(double v) { this.amountSpread = v; }
+    public double getAmountCapSigma() { return amountCapSigma; }
+    public void setAmountCapSigma(double v) { this.amountCapSigma = v; }
+    public double getOverspendRate() { return overspendRate; }
+    public void setOverspendRate(double v) { this.overspendRate = v; }
     public long getSeed() { return seed; }
     public void setSeed(long v) { this.seed = v; }
 }

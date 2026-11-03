@@ -1,5 +1,7 @@
 server:
   port: 8080
+  error:
+    include-message: always   # the UI shows why a 409/403 was refused (e.g. an illegal status transition)
 
 spring:
   application:
@@ -9,6 +11,16 @@ spring:
       uri: ${MONGO_URI:mongodb://localhost:27017/sentinel?replicaSet=rs0&directConnection=true&w=majority}
     redis:
       url: ${REDIS_URL:redis://localhost:6379}
+      # Pipelines (§7 step 3) and blocking stream reads each need a dedicated
+      # connection. Unpooled, Lettuce opens and closes a TCP connection for
+      # every one of them -- ~150/s -- which exhausts Windows' ephemeral ports
+      # (16,384 ports, 120s TIME_WAIT) within two minutes. CLAUDE.md §8 D-34.
+      lettuce:
+        pool:
+          enabled: true
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
   neo4j:
     uri: ${NEO4J_URI:bolt://localhost:7687}
     authentication:
@@ -73,6 +85,9 @@ sentinel:
     minHomeIpsPerCard: 1
     maxHomeIpsPerCard: 2
     minTxnGapMs: 20000       # CLAUDE.md §8 D-19 — hard per-card cooldown, caps velocity at 4/60s structurally
+    amountSpread: 0.4        # CLAUDE.md §8 D-35 — benign amounts stay within +/-40% of the card's typical ticket
+    amountCapSigma: 2.5      # CLAUDE.md §8 D-35 — and never above mean + 2.5 sigma of the card's own history (rule fires at 3)
+    overspendRate: 0.00033   # CLAUDE.md §8 D-35 — ~1 in 3,000 benign txns is a real overspend: ~3 LOW alerts/min at 150 txn/s
     seed: 1590810094         # 0x5ENT1NEL — deterministic PRNG seed, matches seed.mjs (PLAN.md Part 7)
 
   bulkWriter:

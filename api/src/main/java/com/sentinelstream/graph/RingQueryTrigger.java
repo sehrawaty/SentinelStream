@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -35,18 +35,26 @@ public class RingQueryTrigger {
     private final RingQueryService ringQueryService;
     private final RingSnapshotWriter snapshotWriter;
     private final ObjectMapper json = new ObjectMapper();
-    private final ExecutorService executor = Executors.newFixedThreadPool(2, r -> {
+    private final long delayMs;
+    private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(2, r -> {
         Thread t = new Thread(r, "ring-query");
         t.setDaemon(true);
         return t;
     });
 
     public RingQueryTrigger(StringRedisTemplate redis, RedisKeysProperties keysProps,
-                             RingQueryService ringQueryService, RingSnapshotWriter snapshotWriter) {
+                             RingQueryService ringQueryService, RingSnapshotWriter snapshotWriter,
+                             GraphProjectorProperties projectorProps) {
         this.redis = redis;
         this.keysProps = keysProps;
         this.ringQueryService = ringQueryService;
         this.snapshotWriter = snapshotWriter;
+        // Step 7 only *queues* this transaction's edge; the projector writes it up
+        // to one flush interval later. Asked immediately, Neo4j does not yet know
+        // the card is linked to the device that just tripped fan-out, and the
+        // snapshot came back without the ring it was triggered by (§8 D-38). Two
+        // flush intervals covers a batch that was already in flight.
+        this.delayMs = 2 * projectorProps.getFlushIntervalMs();
     }
 
     /** Non-blocking: the cooldown check is a single Redis round trip, the query itself runs off-thread. */
@@ -58,7 +66,7 @@ public class RingQueryTrigger {
             return; // already resolved recently for this card -- skip
         }
         log.info("ENTITY_FANOUT fired for {} -- triggering async ring query", cardId);
-        executor.submit(() -> runAndPersist(cardId));
+        executor.schedule(() -> runAndPersist(cardId), delayMs, TimeUnit.MILLISECONDS);
     }
 
     private void runAndPersist(String cardId) {

@@ -5,6 +5,5 @@ target/
 .gradle/
 *.log
 .env
-docker-compose.override.yml
 .claude/
 api/bin/

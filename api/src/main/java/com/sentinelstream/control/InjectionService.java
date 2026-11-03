@@ -1,5 +1,6 @@
 package com.sentinelstream.control;
 
+import com.sentinelstream.detect.RulesProperties;
 import com.sentinelstream.detect.WindowService;
 import com.sentinelstream.generator.Card;
 import com.sentinelstream.generator.EntityPool;
@@ -12,7 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,16 +47,19 @@ public class InjectionService {
     private final InjectorProperties props;
     private final StringRedisTemplate redis;
     private final WindowService windows;
+    private final RulesProperties rules;
     private final ScheduledExecutorService scheduler;
 
     public InjectionService(EntityPool pool, TransactionFactory factory, GeneratorService generator,
-                             InjectorProperties props, StringRedisTemplate redis, WindowService windows) {
+                             InjectorProperties props, StringRedisTemplate redis, WindowService windows,
+                             RulesProperties rules) {
         this.pool = pool;
         this.factory = factory;
         this.generator = generator;
         this.props = props;
         this.redis = redis;
         this.windows = windows;
+        this.rules = rules;
         this.scheduler = Executors.newScheduledThreadPool(2, r -> {
             Thread t = new Thread(r, "injector");
             t.setDaemon(true);
@@ -69,7 +75,7 @@ public class InjectionService {
         long spacingMs = (props.getVelocity().getWindowSeconds() * 1000L) / count;
 
         for (int i = 0; i < count; i++) {
-            scheduler.schedule(() -> generator.addToStream(factory.benign(card)), i * spacingMs, TimeUnit.MILLISECONDS);
+            scheduler.schedule(() -> generator.addToStream(factory.everyday(card)), i * spacingMs, TimeUnit.MILLISECONDS);
         }
         log.info("Injected VELOCITY: card={} count={} over {}s", card.cardId(), count, props.getVelocity().getWindowSeconds());
         return card.cardId();
@@ -87,7 +93,13 @@ public class InjectionService {
         // ms later). forceClaim reuses that existing cooldown clock as the
         // exclusion mechanism -- no new synchronization primitive needed, and
         // 20s comfortably covers this injector's few-second duration.
-        card.forceClaim(System.currentTimeMillis());
+        //
+        // The claim is dated one velocity window ahead, so the card stays out of
+        // rotation until both legs have been trimmed from card:{c}:txns. Released
+        // after only 20s, its next organic purchase (home city) was compared
+        // against the Delhi leg and raised a second, unrelated-looking
+        // IMPOSSIBLE_TRAVEL alert for every injection -- caught live.
+        card.forceClaim(System.currentTimeMillis() + rules.getVelocity().getWindowSeconds() * 1000L);
         // Clear this card's travel-relevant window state too -- forceClaim only
         // stops *future* organic picks; it does nothing about history already
         // sitting in card:{c}:txns/:geo from before the injection call. Without
@@ -104,8 +116,10 @@ public class InjectionService {
         String ip = card.homeIpIds().get(0);
         int delaySeconds = props.getTravel().getSecondLegDelaySeconds();
 
-        double amount1 = round2(ThreadLocalRandom.current().nextDouble(500, 3000));
-        double amount2 = round2(ThreadLocalRandom.current().nextDouble(500, 3000));
+        // Amounts typical for this card (§8 D-35), so the alert is IMPOSSIBLE_TRAVEL
+        // alone at its calibrated score (§5), not travel plus an accidental AMOUNT_ANOMALY.
+        double amount1 = factory.typicalAmount(card);
+        double amount2 = factory.typicalAmount(card);
 
         // ts is real wall-clock time throughout -- both legs, no simulated
         // future offset (§8 D-21). A short real gap over a long real
@@ -153,7 +167,7 @@ public class InjectionService {
             long delay = i * staggerMs;
             scheduler.schedule(() -> {
                 Merchant merchant = pool.randomMerchant();
-                double amount = round2(ThreadLocalRandom.current().nextDouble(300, 5000));
+                double amount = factory.typicalAmount(card);
                 Map<String, String> fields = factory.custom(
                     card.cardId(), amount, merchant, card.homeCity(), deviceId, ip, System.currentTimeMillis());
                 generator.addToStream(fields);
@@ -165,8 +179,26 @@ public class InjectionService {
         return cardIds;
     }
 
-    private double round2(double v) {
-        return Math.round(v * 100.0) / 100.0;
+    /**
+     * One card with an established baseline makes a single purchase at 3x-4.5x
+     * its usual ticket -- fires AMOUNT_ANOMALY. The fourth detector had no
+     * on-demand trigger; this is it (§8 D-35).
+     */
+    public String injectAmount() {
+        for (int attempt = 0; attempt < 500; attempt++) {
+            Card card = pool.randomCard();
+            if (factory.hasAmountBaseline(card)) {
+                Map<String, String> fields = factory.overspend(card);
+                generator.addToStream(fields);
+                log.info("Injected AMOUNT: card={} amount={} (typical ticket {})",
+                    card.cardId(), fields.get("amount"), Math.round(card.typicalTicket()));
+                return card.cardId();
+            }
+        }
+        // The rule needs 5 prior amounts on the card (§5), which takes about two
+        // minutes of traffic from a cold start.
+        throw new ResponseStatusException(HttpStatus.CONFLICT,
+            "No card has enough spending history yet. Let traffic run for two minutes and try again.");
     }
 
     /** 10.20.x.x -- a range distinct from both the organic pool's IPs and the seed script's 10.10.10.x ring. */

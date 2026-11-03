@@ -33,22 +33,33 @@ public final class ReferenceData {
             .orElseThrow(() -> new IllegalArgumentException("Unknown city: " + name));
     }
 
-    /** Merchant category catalogue — id prefix, display name pool, plausible MCC, amount shape. */
-    public record CategorySpec(String category, String mcc, String[] nameStems,
-                                double meanAmount, double sigma, double minAmount, double maxAmount) {}
+    /**
+     * Merchant category catalogue — display name pool, plausible MCC, and the
+     * typical ticket (INR) at that kind of merchant. The ticket is what ties a
+     * card to the categories it shops in (§8 D-35); per-transaction amounts
+     * come from the card's own profile, not from the category.
+     */
+    public record CategorySpec(String category, String mcc, String[] nameStems, double typicalTicket) {}
 
     public static final List<CategorySpec> CATEGORIES = List.of(
-        new CategorySpec("GROCERY",       "5411", new String[]{"FreshMart", "DailyBazaar", "SuperStop"},      600,  0.55,    50,   3000),
-        new CategorySpec("APPAREL",       "5651", new String[]{"Pothys", "StyleHub", "Threads Co"},          1800,  0.60,   200,   8000),
-        new CategorySpec("ELECTRONICS",   "5732", new String[]{"CircuitPoint", "GadgetWorld", "ByteBazaar"}, 8000,  0.65,   500,  60000),
-        new CategorySpec("FUEL",          "5541", new String[]{"HP Petrol", "IndianOil", "BharatPump"},      1200,  0.40,   200,   4000),
-        new CategorySpec("DINING",        "5812", new String[]{"Spice Route", "Cafe Noir", "Urban Tadka"},    900,  0.55,   100,   5000),
-        new CategorySpec("TRAVEL",        "4722", new String[]{"SkyBook", "RailYatri", "TripCart"},          5000,  0.70,   500,  40000),
-        new CategorySpec("PHARMACY",      "5912", new String[]{"MedPlus", "Apollo Pharmacy", "WellCare"},     400,  0.50,    50,   2500),
-        new CategorySpec("ENTERTAINMENT", "7832", new String[]{"CineMax", "PlayZone", "MusicHall"},           700,  0.55,   100,   3000),
-        new CategorySpec("UTILITIES",     "4900", new String[]{"PowerGrid Pay", "AquaBill", "GasLine"},      1500,  0.35,   200,   6000),
-        new CategorySpec("JEWELRY",       "5944", new String[]{"Tanishq", "GoldLeaf", "Kundan House"},     15000,  0.60,  1000, 150000)
+        new CategorySpec("GROCERY",       "5411", new String[]{"FreshMart", "DailyBazaar", "SuperStop"},      600),
+        new CategorySpec("APPAREL",       "5651", new String[]{"Pothys", "StyleHub", "Threads Co"},          1800),
+        new CategorySpec("ELECTRONICS",   "5732", new String[]{"CircuitPoint", "GadgetWorld", "ByteBazaar"}, 8000),
+        new CategorySpec("FUEL",          "5541", new String[]{"HP Petrol", "IndianOil", "BharatPump"},      1200),
+        new CategorySpec("DINING",        "5812", new String[]{"Spice Route", "Cafe Noir", "Urban Tadka"},    900),
+        new CategorySpec("TRAVEL",        "4722", new String[]{"SkyBook", "RailYatri", "TripCart"},          5000),
+        new CategorySpec("PHARMACY",      "5912", new String[]{"MedPlus", "Apollo Pharmacy", "WellCare"},     400),
+        new CategorySpec("ENTERTAINMENT", "7832", new String[]{"CineMax", "PlayZone", "MusicHall"},           700),
+        new CategorySpec("UTILITIES",     "4900", new String[]{"PowerGrid Pay", "AquaBill", "GasLine"},      1500),
+        new CategorySpec("JEWELRY",       "5944", new String[]{"Tanishq", "GoldLeaf", "Kundan House"},     15000)
     );
+
+    public static CategorySpec category(String name) {
+        return CATEGORIES.stream()
+            .filter(c -> c.category().equals(name))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException("Unknown category: " + name));
+    }
 
     private ReferenceData() {}
 }

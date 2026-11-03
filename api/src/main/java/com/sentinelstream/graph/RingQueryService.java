@@ -101,11 +101,14 @@ public class RingQueryService {
         long start = System.nanoTime();
         try (Session session = driver.session()) {
             Result result = session.run(RING_FOR_CARD_CYPHER, Map.of("cardId", cardId));
+            // Timed after the record is pulled, not after run(): the driver streams
+            // lazily, so stopping the clock at run() reported ~1ms for any ring.
+            boolean found = result.hasNext();
+            Record record = found ? result.single() : null;
             long ms = (System.nanoTime() - start) / 1_000_000;
-            if (!result.hasNext()) {
+            if (!found) {
                 return new RingResult(List.of(), List.of(), List.of(), ms);
             }
-            Record record = result.single();
             return new RingResult(
                 record.get("cardNodes").asList(v -> v.asMap()),
                 record.get("entityNodes").asList(v -> v.asMap()),

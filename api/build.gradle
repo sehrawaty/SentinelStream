@@ -25,6 +25,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Lettuce only pools its dedicated connections when commons-pool2 is present
+    // (see spring.data.redis.lettuce.pool in application.yml, CLAUDE.md §8 D-34).
+    implementation 'org.apache.commons:commons-pool2'
     implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

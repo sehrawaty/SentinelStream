@@ -106,7 +106,14 @@ public class EntityPool {
                     + " — increase ipCount or maxCardsPerIp");
             }
 
-            built.add(new Card(cardId, homeDevice, List.copyOf(homeIps), homeCity));
+            // Spending profile (§8 D-35): a ticket size near one category's typical
+            // ticket, and every merchant that sells at roughly that price point.
+            ReferenceData.CategorySpec homeCategory =
+                ReferenceData.CATEGORIES.get(rnd.nextInt(ReferenceData.CATEGORIES.size()));
+            double typicalTicket = homeCategory.typicalTicket() * (0.8 + 0.45 * rnd.nextDouble());
+
+            built.add(new Card(cardId, homeDevice, List.copyOf(homeIps), homeCity,
+                typicalTicket, merchantsNear(typicalTicket)));
         }
 
         this.cards = List.copyOf(built);
@@ -124,6 +131,21 @@ public class EntityPool {
 
     public Merchant randomMerchant() {
         return merchants.get(ThreadLocalRandom.current().nextInt(merchants.size()));
+    }
+
+    /**
+     * Merchants whose category's typical ticket is within roughly 0.55x-1.8x of
+     * {@code amount} -- wide enough that a card shops across several categories,
+     * narrow enough that it never mixes a pharmacy bill with a jewellery one.
+     * Empty when nothing sells at that price point.
+     */
+    public List<Merchant> merchantsNear(double amount) {
+        return merchants.stream()
+            .filter(m -> {
+                double ratio = ReferenceData.category(m.category()).typicalTicket() / amount;
+                return ratio >= 0.55 && ratio <= 1.8;
+            })
+            .toList();
     }
 
     private static List<String> idList(String prefix, int count) {

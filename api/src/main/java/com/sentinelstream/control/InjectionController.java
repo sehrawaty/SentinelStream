@@ -22,6 +22,12 @@ public class InjectionController {
         return Map.of("pattern", "VELOCITY", "cardId", cardId);
     }
 
+    @PostMapping("/api/control/inject/amount")
+    public Map<String, Object> amount() {
+        String cardId = injection.injectAmount();
+        return Map.of("pattern", "AMOUNT_ANOMALY", "cardId", cardId);
+    }
+
     @PostMapping("/api/control/inject/travel")
     public Map<String, Object> travel() {
         String cardId = injection.injectTravel();

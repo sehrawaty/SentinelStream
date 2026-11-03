@@ -84,6 +84,62 @@ public class TriageService {
         return body;
     }
 
+    /**
+     * Live `explain("executionStats")` of the triage-queue read for the given
+     * filters -- the same {status, severity} equality + ts-descending sort
+     * {@link #list} runs. Lets the UI show which §4.3 index actually served
+     * the query, and how many keys/documents it touched, instead of asserting it.
+     */
+    public Map<String, Object> explainQueue(String status, String severity, int size) {
+        Document filter = new Document();
+        if (status != null) filter.append("status", status);
+        if (severity != null) filter.append("severity", severity);
+
+        Document explained = mongoTemplate.getDb().runCommand(new Document("explain",
+                new Document("find", "alerts").append("filter", filter)
+                    .append("sort", new Document("ts", -1)).append("limit", size))
+            .append("verbosity", "executionStats"));
+
+        Document winning = explained.get("queryPlanner", Document.class).get("winningPlan", Document.class);
+        // The slot-based engine nests the classic-shaped plan one level down.
+        if (winning.get("queryPlan") instanceof Document classic) {
+            winning = classic;
+        }
+        List<String> stages = new ArrayList<>();
+        Document indexStage = collectStages(winning, stages);
+        Document stats = explained.get("executionStats", Document.class);
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("filter", filter);
+        body.put("stages", stages);
+        body.put("indexName", indexStage == null ? null : indexStage.getString("indexName"));
+        body.put("keyPattern", indexStage == null ? null : indexStage.get("keyPattern"));
+        body.put("collScan", stages.contains("COLLSCAN"));
+        body.put("inMemorySort", stages.contains("SORT"));
+        body.put("nReturned", stats.get("nReturned"));
+        body.put("keysExamined", stats.get("totalKeysExamined"));
+        body.put("docsExamined", stats.get("totalDocsExamined"));
+        body.put("millis", stats.get("executionTimeMillis"));
+        return body;
+    }
+
+    /** Walks a winning plan root-to-leaf, recording stage names; returns the first index-scan stage found. */
+    private static Document collectStages(Document stage, List<String> stages) {
+        Document indexStage = null;
+        for (Document cur = stage; cur != null; ) {
+            stages.add(cur.getString("stage"));
+            if (indexStage == null && cur.containsKey("indexName")) {
+                indexStage = cur;
+            }
+            Object next = cur.get("inputStage");
+            if (next == null && cur.get("inputStages") instanceof List<?> many && !many.isEmpty()) {
+                next = many.get(0);
+            }
+            cur = next instanceof Document d ? d : null;
+        }
+        return indexStage;
+    }
+
     /** Pipeline E (implementation plan Part 3) -- alert + triggering txn + prior-10 context + block status. */
     public Document detail(String alertId) {
         List<Document> pipeline = List.of(
@@ -110,6 +166,7 @@ public class TriageService {
             new Document("$project", new Document("_id", 0)
                 .append("alertId", 1).append("cardId", 1).append("severity", 1).append("score", 1)
                 .append("status", 1).append("assignee", 1).append("ts", 1).append("rules", 1)
+                .append("origin", 1).append("resolution", 1).append("txnId", 1)
                 .append("notes", 1).append("statusHistory", 1).append("txn", 1).append("priorTxns", 1)
                 .append("blocked", new Document("$ifNull", List.of(
                     new Document("$first", "$block.active"), false)))
